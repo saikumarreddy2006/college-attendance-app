@@ -1,0 +1,114 @@
+/* Modern SaaS Styles for College Attendance Management App */
+
+@layer utilities {
+    /* Custom scrollbar */
+    ::-webkit-scrollbar {
+        width: 6px;
+        height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+        background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+        background: #cbd5e1;
+        border-radius: 9999px;
+    }
+    .dark ::-webkit-scrollbar-thumb {
+        background: #334155;
+    }
+}
+
+/* Glassmorphism & subtle border effects */
+.card-subtle {
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.card-subtle:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px -2px rgba(0, 0, 0, 0.05);
+}
+.dark .card-subtle:hover {
+    box-shadow: 0 4px 12px -2px rgba(0, 0, 0, 0.3);
+}
+
+/* Circular Progress Indicator */
+.circle-progress-bg {
+    stroke: #e2e8f0;
+}
+.dark .circle-progress-bg {
+    stroke: #334155;
+}
+.circle-progress-val {
+    transition: stroke-dashoffset 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+    transform: rotate(-90deg);
+    transform-origin: 50% 50%;
+}
+
+/* Toast notifications */
+#toast-container {
+    position: fixed;
+    bottom: 1.5rem;
+    right: 1.5rem;
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    pointer-events: none;
+}
+.toast {
+    pointer-events: auto;
+    animation: toast-slide-in 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+}
+@keyframes toast-slide-in {
+    from {
+        opacity: 0;
+        transform: translateY(1rem) scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+/* Modal animation */
+.modal-overlay {
+    background-color: rgba(15, 23, 42, 0.6);
+    backdrop-filter: blur(4px);
+    animation: fadeIn 0.15s ease;
+}
+.modal-content {
+    animation: scaleUp 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+}
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+@keyframes scaleUp {
+    from { opacity: 0; transform: scale(0.96) translateY(4px); }
+    to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+/* Calendar styling */
+.calendar-day-cell {
+    min-height: 80px;
+    transition: background-color 0.15s ease;
+}
+@media (max-width: 640px) {
+    .calendar-day-cell {
+        min-height: 60px;
+    }
+}
+
+/* Pulsing dot for today's active period */
+.pulse-dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    animation: pulse 2s infinite;
+}
+@keyframes pulse {
+    0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7); }
+    70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(59, 130, 246, 0); }
+    100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(59, 130, 246, 0); }
+}

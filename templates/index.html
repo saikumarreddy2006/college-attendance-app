@@ -1,0 +1,1546 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AcademiaTrack - College Attendance Management</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#eef2ff',
+                            100: '#e0e7ff',
+                            500: '#6366f1',
+                            600: '#4f46e5',
+                            700: '#4338ca',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- SheetJS (xlsx) -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="/static/css/style.css">
+    <!-- Font -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Plus Jakarta Sans', sans-serif; }
+    </style>
+</head>
+<body class="h-full bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 flex flex-col md:flex-row antialiased transition-colors">
+
+    <!-- Toast Notifications Container -->
+    <div id="toast-container"></div>
+
+    <!-- Confirmation Modal -->
+    <div id="modal-confirm" class="modal-overlay fixed inset-0 z-50 flex items-center justify-center p-4 hidden">
+        <div class="modal-content bg-white dark:bg-slate-900 rounded-3xl p-6 max-w-md w-full border border-slate-200 dark:border-slate-800 shadow-2xl">
+            <h3 id="confirm-title" class="text-lg font-bold text-slate-900 dark:text-white mb-2">Confirm Action</h3>
+            <p id="confirm-message" class="text-sm text-slate-600 dark:text-slate-300 mb-6">Are you sure you want to proceed?</p>
+            <div class="flex items-center justify-end gap-3">
+                <button id="confirm-btn-no" class="px-4 py-2.5 rounded-xl text-sm font-semibold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition">Cancel</button>
+                <button id="confirm-btn-yes" class="px-5 py-2.5 rounded-xl text-sm font-semibold bg-indigo-600 text-white hover:bg-indigo-700 transition">Confirm</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Desktop Sidebar -->
+    <aside class="hidden md:flex flex-col w-64 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 p-4 justify-between flex-shrink-0 z-30">
+        <div>
+            <!-- Brand Logo -->
+            <div class="flex items-center gap-3 px-3 py-3 mb-6">
+                <div class="w-10 h-10 rounded-2xl bg-indigo-600 flex items-center justify-center text-white shadow-md shadow-indigo-500/20">
+                    <i data-lucide="graduation-cap" class="w-6 h-6"></i>
+                </div>
+                <div>
+                    <h1 class="font-extrabold text-base tracking-tight text-slate-900 dark:text-white">AcademiaTrack</h1>
+                    <p class="text-xs text-slate-500 dark:text-slate-400 font-medium">College Attendance</p>
+                </div>
+            </div>
+
+            <!-- Navigation Links -->
+            <nav class="space-y-1">
+                <button data-view-nav="dashboard" class="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-2xl text-sm font-semibold transition text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/60">
+                    <i data-lucide="layout-dashboard" class="w-5 h-5"></i>
+                    <span>Dashboard</span>
+                </button>
+                <button data-view-nav="today" class="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-2xl text-sm font-semibold transition text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/60">
+                    <i data-lucide="check-circle-2" class="w-5 h-5"></i>
+                    <span>Today's Classes</span>
+                </button>
+                <button data-view-nav="timetable" class="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-2xl text-sm font-semibold transition text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/60">
+                    <i data-lucide="calendar-clock" class="w-5 h-5"></i>
+                    <span>Timetable</span>
+                </button>
+                <button data-view-nav="periods" class="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-2xl text-sm font-semibold transition text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/60">
+                    <i data-lucide="clock" class="w-5 h-5"></i>
+                    <span>Periods & Slots</span>
+                </button>
+                <button data-view-nav="records" class="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-2xl text-sm font-semibold transition text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/60">
+                    <i data-lucide="history" class="w-5 h-5"></i>
+                    <span>Attendance Logs</span>
+                </button>
+                <button data-view-nav="daterange" class="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-2xl text-sm font-semibold transition text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/60">
+                    <i data-lucide="calendar-range" class="w-5 h-5"></i>
+                    <span>Date Range Analysis</span>
+                </button>
+                <button data-view-nav="analytics" class="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-2xl text-sm font-semibold transition text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/60">
+                    <i data-lucide="bar-chart-3" class="w-5 h-5"></i>
+                    <span>Monthly Analytics</span>
+                </button>
+                <button data-view-nav="calendar" class="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-2xl text-sm font-semibold transition text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/60">
+                    <i data-lucide="calendar" class="w-5 h-5"></i>
+                    <span>Calendar View</span>
+                </button>
+                <button data-view-nav="settings" class="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-2xl text-sm font-semibold transition text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/60">
+                    <i data-lucide="settings" class="w-5 h-5"></i>
+                    <span>Settings & Data</span>
+                </button>
+            </nav>
+        </div>
+
+        <!-- Quick Export Card at bottom of sidebar -->
+        <div class="p-3 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-200/80 dark:border-slate-800">
+            <div class="flex items-center gap-2 mb-2 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                <i data-lucide="file-spreadsheet" class="w-4 h-4 text-emerald-500"></i>
+                <span>Quick Export</span>
+            </div>
+            <button class="w-full py-2 px-3 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white transition flex items-center justify-center gap-2 shadow-sm" onclick="window.appOpenExportModal('all')">
+                <i data-lucide="download" class="w-3.5 h-3.5"></i>
+                <span>Export to Excel</span>
+            </button>
+        </div>
+    </aside>
+
+    <!-- Mobile Drawer Navigation -->
+    <div id="mobile-drawer" class="modal-overlay fixed inset-0 z-50 md:hidden hidden">
+        <div class="bg-white dark:bg-slate-900 w-72 h-full p-5 flex flex-col justify-between border-r border-slate-200 dark:border-slate-800 shadow-2xl">
+            <div>
+                <div class="flex items-center justify-between mb-6">
+                    <div class="flex items-center gap-3">
+                        <div class="w-9 h-9 rounded-xl bg-indigo-600 flex items-center justify-center text-white">
+                            <i data-lucide="graduation-cap" class="w-5 h-5"></i>
+                        </div>
+                        <span class="font-extrabold text-base text-slate-900 dark:text-white">AcademiaTrack</span>
+                    </div>
+                    <button id="btn-close-drawer" class="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-white">
+                        <i data-lucide="x" class="w-5 h-5"></i>
+                    </button>
+                </div>
+                <nav class="space-y-1">
+                    <button data-view-nav="dashboard" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-slate-600 dark:text-slate-300">
+                        <i data-lucide="layout-dashboard" class="w-5 h-5"></i> Dashboard
+                    </button>
+                    <button data-view-nav="today" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-slate-600 dark:text-slate-300">
+                        <i data-lucide="check-circle-2" class="w-5 h-5"></i> Today's Classes
+                    </button>
+                    <button data-view-nav="timetable" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-slate-600 dark:text-slate-300">
+                        <i data-lucide="calendar-clock" class="w-5 h-5"></i> Timetable
+                    </button>
+                    <button data-view-nav="periods" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-slate-600 dark:text-slate-300">
+                        <i data-lucide="clock" class="w-5 h-5"></i> Periods & Slots
+                    </button>
+                    <button data-view-nav="records" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-slate-600 dark:text-slate-300">
+                        <i data-lucide="history" class="w-5 h-5"></i> Attendance Logs
+                    </button>
+                    <button data-view-nav="daterange" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-slate-600 dark:text-slate-300">
+                        <i data-lucide="calendar-range" class="w-5 h-5"></i> Date Range Analysis
+                    </button>
+                    <button data-view-nav="analytics" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-slate-600 dark:text-slate-300">
+                        <i data-lucide="bar-chart-3" class="w-5 h-5"></i> Monthly Analytics
+                    </button>
+                    <button data-view-nav="calendar" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-slate-600 dark:text-slate-300">
+                        <i data-lucide="calendar" class="w-5 h-5"></i> Calendar View
+                    </button>
+                    <button data-view-nav="settings" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-slate-600 dark:text-slate-300">
+                        <i data-lucide="settings" class="w-5 h-5"></i> Settings
+                    </button>
+                </nav>
+            </div>
+            <div>
+                <button class="w-full py-2.5 px-4 rounded-xl text-sm font-bold bg-emerald-600 text-white flex items-center justify-center gap-2" onclick="window.appOpenExportModal('all')">
+                    <i data-lucide="download" class="w-4 h-4"></i> Export to Excel
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content Area -->
+    <div class="flex-1 flex flex-col min-h-screen overflow-x-hidden pb-16 md:pb-0">
+
+        <!-- Offline / Connection Status Banner -->
+        <div id="conn-status-bar" class="hidden bg-amber-500 text-white text-xs font-bold py-2 px-4 text-center flex items-center justify-center gap-2 transition-all sticky top-0 z-30 shadow-md">
+            <i data-lucide="wifi-off" class="w-4 h-4"></i>
+            <span id="conn-status-text">You are currently offline. Changes are saved locally and will auto-sync to the cloud when you reconnect.</span>
+        </div>
+
+        <!-- Top Header Bar -->
+        <header class="bg-white/80 dark:bg-slate-900/80 backdrop-blur-md sticky top-0 z-20 border-b border-slate-200 dark:border-slate-800 px-4 sm:px-8 py-3.5 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <button id="btn-mobile-menu" class="md:hidden p-2 rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800">
+                    <i data-lucide="menu" class="w-6 h-6"></i>
+                </button>
+                <div class="hidden sm:block">
+                    <div class="text-xs font-semibold uppercase tracking-wider text-slate-400">Semester 2026</div>
+                    <div class="font-bold text-sm text-slate-900 dark:text-white">College Attendance Manager</div>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-2 sm:gap-4">
+                <!-- Cloud Sync Status Pill -->
+                <div id="cloud-sync-pill" class="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800">
+                    <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                    <span id="cloud-sync-text">Cloud Synced</span>
+                </div>
+
+                <!-- Theme toggle button -->
+                <button id="btn-theme-toggle" class="p-2.5 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition" title="Toggle Theme">
+                    <i data-lucide="moon" class="w-4 h-4 hidden dark:block"></i>
+                    <i data-lucide="sun" class="w-4 h-4 block dark:hidden"></i>
+                </button>
+
+                <!-- Export Excel Button -->
+                <button class="hidden sm:flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm transition" onclick="window.appOpenExportModal('all')">
+                    <i data-lucide="file-spreadsheet" class="w-4 h-4"></i>
+                    <span>Export Excel</span>
+                </button>
+
+                <!-- Mark Today Quick Action -->
+                <button class="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm transition" onclick="window.switchView('today')">
+                    <i data-lucide="check" class="w-4 h-4"></i>
+                    <span>Mark Today</span>
+                </button>
+
+                <!-- User Profile & Dropdown -->
+                <div class="relative" id="user-profile-container">
+                    <button id="btn-user-profile" class="flex items-center gap-2 p-1.5 sm:px-3 sm:py-1.5 rounded-2xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 transition" onclick="window.appToggleUserMenu()">
+                        <div id="user-avatar-initials" class="w-7 h-7 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-bold text-xs uppercase shadow-sm">
+                            U
+                        </div>
+                        <span id="user-display-name" class="hidden sm:block text-xs font-bold text-slate-800 dark:text-slate-200 max-w-[100px] truncate">
+                            Account
+                        </span>
+                        <i data-lucide="chevron-down" class="w-3.5 h-3.5 text-slate-400 hidden sm:block"></i>
+                    </button>
+
+                    <!-- Dropdown Menu -->
+                    <div id="user-profile-menu" class="hidden absolute right-0 mt-2 w-56 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xl py-2 z-50">
+                        <div class="px-4 py-2 border-b border-slate-100 dark:border-slate-800">
+                            <div id="menu-user-name" class="font-bold text-sm text-slate-900 dark:text-white truncate">User</div>
+                            <div id="menu-user-email" class="text-xs text-slate-400 truncate">user@example.com</div>
+                        </div>
+                        <button class="w-full px-4 py-2 text-left text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 flex items-center gap-2" onclick="window.switchView('settings'); window.appToggleUserMenu(false);">
+                            <i data-lucide="settings" class="w-4 h-4 text-slate-400"></i> Settings
+                        </button>
+                        <button class="w-full px-4 py-2 text-left text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 flex items-center gap-2" onclick="window.appExportBackup(); window.appToggleUserMenu(false);">
+                            <i data-lucide="download" class="w-4 h-4 text-slate-400"></i> Export Cloud Data
+                        </button>
+                        <div class="my-1 border-t border-slate-100 dark:border-slate-800"></div>
+                        <button class="w-full px-4 py-2 text-left text-xs font-bold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 flex items-center gap-2" onclick="window.appLogout()">
+                            <i data-lucide="log-out" class="w-4 h-4"></i> Log Out
+                        </button>
+                    </div>
+                </div>
+
+            </div>
+        </header>
+
+        <!-- Main Body Panels -->
+        <main class="flex-1 p-4 sm:p-8 max-w-7xl mx-auto w-full">
+
+            <!-- ================= VIEW 0: AUTHENTICATION (LOGIN / SIGNUP) ================= -->
+            <section id="view-auth" class="view-panel max-w-md mx-auto my-8 space-y-6">
+                <div class="bg-white dark:bg-slate-900 rounded-3xl p-6 sm:p-8 border border-slate-200 dark:border-slate-800 shadow-xl">
+                    <!-- Brand Banner -->
+                    <div class="text-center mb-6">
+                        <div class="w-12 h-12 rounded-2xl bg-indigo-600 text-white flex items-center justify-center mx-auto mb-3 shadow-md shadow-indigo-500/20">
+                            <i data-lucide="graduation-cap" class="w-7 h-7"></i>
+                        </div>
+                        <h2 class="text-2xl font-black text-slate-900 dark:text-white">AcademiaTrack Cloud</h2>
+                        <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Log in to synchronize your attendance across phone, laptop & tablet.</p>
+                    </div>
+
+                    <!-- Auth Error/Message Banner -->
+                    <div id="auth-alert-box" class="hidden mb-4 p-3.5 rounded-2xl text-xs font-semibold flex items-center gap-2"></div>
+
+                    <!-- Tab Switcher (Login / Signup) -->
+                    <div id="auth-tab-buttons" class="grid grid-cols-2 p-1 bg-slate-100 dark:bg-slate-800 rounded-2xl mb-6 text-xs font-bold">
+                        <button id="btn-auth-tab-login" class="py-2.5 rounded-xl bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-sm transition" onclick="window.appSwitchAuthSubtab('login')">
+                            Sign In
+                        </button>
+                        <button id="btn-auth-tab-signup" class="py-2.5 rounded-xl text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition" onclick="window.appSwitchAuthSubtab('signup')">
+                            Create Account
+                        </button>
+                    </div>
+
+                    <!-- 1. LOGIN FORM -->
+                    <form id="form-auth-login" onsubmit="window.appHandleLogin(event)" class="space-y-4">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Email Address</label>
+                            <input type="email" id="auth-login-email" required placeholder="student@college.edu" class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-xs font-semibold text-slate-800 dark:text-slate-200 focus:outline-indigo-500">
+                        </div>
+                        <div>
+                            <div class="flex items-center justify-between mb-1">
+                                <label class="text-xs font-bold text-slate-700 dark:text-slate-300">Password</label>
+                                <button type="button" class="text-[11px] font-bold text-indigo-600 dark:text-indigo-400 hover:underline" onclick="window.appSwitchAuthSubtab('forgot')">Forgot password?</button>
+                            </div>
+                            <input type="password" id="auth-login-password" required placeholder="••••••••" class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-xs font-semibold text-slate-800 dark:text-slate-200 focus:outline-indigo-500">
+                        </div>
+                        <button type="submit" id="btn-auth-submit-login" class="w-full py-3 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white transition shadow-sm flex items-center justify-center gap-2">
+                            <i data-lucide="log-in" class="w-4 h-4"></i> Sign In to Account
+                        </button>
+                    </form>
+
+                    <!-- 2. SIGN UP FORM -->
+                    <form id="form-auth-signup" onsubmit="window.appHandleSignup(event)" class="space-y-4 hidden">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Full Name</label>
+                            <input type="text" id="auth-signup-name" required placeholder="e.g. Sai Kumar" class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-xs font-semibold text-slate-800 dark:text-slate-200 focus:outline-indigo-500">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">College Email</label>
+                            <input type="email" id="auth-signup-email" required placeholder="sai@college.edu" class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-xs font-semibold text-slate-800 dark:text-slate-200 focus:outline-indigo-500">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Password (min 6 chars)</label>
+                            <input type="password" id="auth-signup-password" minlength="6" required placeholder="••••••••" class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-xs font-semibold text-slate-800 dark:text-slate-200 focus:outline-indigo-500">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Confirm Password</label>
+                            <input type="password" id="auth-signup-confirm" minlength="6" required placeholder="••••••••" class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-xs font-semibold text-slate-800 dark:text-slate-200 focus:outline-indigo-500">
+                        </div>
+                        <button type="submit" id="btn-auth-submit-signup" class="w-full py-3 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white transition shadow-sm flex items-center justify-center gap-2">
+                            <i data-lucide="user-plus" class="w-4 h-4"></i> Create Cloud Account
+                        </button>
+                    </form>
+
+                    <!-- 3. FORGOT PASSWORD FORM -->
+                    <form id="form-auth-forgot" onsubmit="window.appHandleForgotPassword(event)" class="space-y-4 hidden">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Enter your registered email</label>
+                            <input type="email" id="auth-forgot-email" required placeholder="student@college.edu" class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-xs font-semibold text-slate-800 dark:text-slate-200">
+                        </div>
+                        <button type="submit" class="w-full py-3 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white transition flex items-center justify-center gap-2">
+                            <i data-lucide="key" class="w-4 h-4"></i> Generate Reset Token
+                        </button>
+                        <button type="button" class="w-full py-2 text-xs font-semibold text-slate-500 hover:text-slate-800 dark:hover:text-slate-200" onclick="window.appSwitchAuthSubtab('login')">
+                            &larr; Back to Sign In
+                        </button>
+                    </form>
+
+                    <!-- 4. RESET PASSWORD FORM -->
+                    <form id="form-auth-reset" onsubmit="window.appHandleResetPassword(event)" class="space-y-4 hidden">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Reset Token</label>
+                            <input type="text" id="auth-reset-token" required placeholder="Enter token" class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-xs font-semibold">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">New Password (min 6 chars)</label>
+                            <input type="password" id="auth-reset-password" minlength="6" required placeholder="••••••••" class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-xs font-semibold">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Confirm New Password</label>
+                            <input type="password" id="auth-reset-confirm" minlength="6" required placeholder="••••••••" class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-xs font-semibold">
+                        </div>
+                        <button type="submit" class="w-full py-3 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white transition flex items-center justify-center gap-2">
+                            <i data-lucide="check" class="w-4 h-4"></i> Update Password & Sign In
+                        </button>
+                        <button type="button" class="w-full py-2 text-xs font-semibold text-slate-500 hover:text-slate-800 dark:hover:text-slate-200" onclick="window.appSwitchAuthSubtab('login')">
+                            &larr; Back to Sign In
+                        </button>
+                    </form>
+                </div>
+            </section>
+
+            <!-- ================= VIEW 1: DASHBOARD ================= -->
+            <section id="view-dashboard" class="view-panel space-y-6">
+
+                <!-- Smart Alert Banner -->
+                <div id="dash-alert-banner" class="hidden mb-6 p-4 rounded-2xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-300 flex items-start gap-3">
+                    <i data-lucide="alert-triangle" class="w-5 h-5 flex-shrink-0 mt-0.5"></i>
+                    <div id="dash-alert-text" class="text-sm"></div>
+                </div>
+
+                <!-- Top Statistics Row -->
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+                    <!-- Overall Attendance Large Visual Card -->
+                    <div class="bg-white dark:bg-slate-900 rounded-3xl p-6 sm:p-7 border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-between relative overflow-hidden">
+                        <div class="flex items-center justify-between mb-4">
+                            <div>
+                                <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Overall Attendance</span>
+                                <h3 class="text-lg font-bold text-slate-900 dark:text-white mt-0.5">Cumulative Standing</h3>
+                            </div>
+                            <span id="dash-overall-status" class="px-3 py-1 rounded-full text-xs font-bold">Good</span>
+                        </div>
+
+                        <div class="flex items-center gap-6 my-2">
+                            <!-- Visual Ring Gauge -->
+                            <div class="relative w-32 h-32 flex-shrink-0 flex items-center justify-center">
+                                <svg class="w-32 h-32 transform -rotate-90" viewBox="0 0 120 120">
+                                    <circle cx="60" cy="60" r="54" stroke-width="10" fill="transparent" class="circle-progress-bg" />
+                                    <circle id="dash-pct-ring" cx="60" cy="60" r="54" stroke-width="10" stroke-linecap="round" fill="transparent" class="circle-progress-val stroke-indigo-600" />
+                                </svg>
+                                <div class="absolute inset-0 flex flex-col items-center justify-center text-center">
+                                    <span id="dash-pct-text" class="text-2xl font-black text-slate-900 dark:text-white">0%</span>
+                                    <span class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Overall</span>
+                                </div>
+                            </div>
+
+                            <!-- Key Metrics Breakdown -->
+                            <div class="space-y-2.5 flex-1">
+                                <div class="flex items-center justify-between text-xs">
+                                    <span class="text-slate-500 flex items-center gap-1.5"><i data-lucide="check-circle" class="w-3.5 h-3.5 text-emerald-500"></i> Attended</span>
+                                    <span id="dash-attended-classes" class="font-bold text-slate-900 dark:text-white text-sm">0</span>
+                                </div>
+                                <div class="flex items-center justify-between text-xs">
+                                    <span class="text-slate-500 flex items-center gap-1.5"><i data-lucide="x-circle" class="w-3.5 h-3.5 text-rose-500"></i> Absent</span>
+                                    <span id="dash-absent-classes" class="font-bold text-slate-900 dark:text-white text-sm">0</span>
+                                </div>
+                                <div class="flex items-center justify-between text-xs pt-1 border-t border-slate-100 dark:border-slate-800">
+                                    <span class="text-slate-500 font-medium">Total Conducted</span>
+                                    <span id="dash-total-classes" class="font-bold text-slate-900 dark:text-white text-sm">0</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Safe To Miss Indicator -->
+                        <div class="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 text-xs flex items-center justify-between">
+                            <span id="dash-safe-miss-text" class="font-semibold text-slate-800 dark:text-slate-200"></span>
+                            <span id="dash-safe-miss-desc" class="text-slate-400"></span>
+                        </div>
+                    </div>
+
+                    <!-- Today's Schedule Quick Summary Card -->
+                    <div id="dash-today-quick-card" class="bg-white dark:bg-slate-900 rounded-3xl p-6 sm:p-7 border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-between">
+                        <div>
+                            <div class="flex items-center justify-between mb-3">
+                                <div>
+                                    <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Today's Schedule</span>
+                                    <h3 id="dash-today-day-label" class="text-base font-bold text-slate-900 dark:text-white mt-0.5">Today</h3>
+                                </div>
+                                <button class="text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:underline" onclick="window.switchView('today')">View Day &rarr;</button>
+                            </div>
+
+                            <div class="grid grid-cols-2 gap-3 my-4">
+                                <div class="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800 text-center">
+                                    <span class="text-xs text-slate-400">Total Periods</span>
+                                    <div id="dash-today-total" class="text-2xl font-black text-slate-900 dark:text-white mt-0.5">0</div>
+                                </div>
+                                <div class="p-3 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-100 dark:border-emerald-800/60 text-center">
+                                    <span class="text-xs text-emerald-600 dark:text-emerald-400">Present</span>
+                                    <div id="dash-today-present" class="text-2xl font-black text-emerald-600 dark:text-emerald-400 mt-0.5">0</div>
+                                </div>
+                                <div class="p-3 rounded-2xl bg-rose-50 dark:bg-rose-950/40 border border-rose-100 dark:border-rose-800/60 text-center">
+                                    <span class="text-xs text-rose-600 dark:text-rose-400">Absent</span>
+                                    <div id="dash-today-absent" class="text-2xl font-black text-rose-600 dark:text-rose-400 mt-0.5">0</div>
+                                </div>
+                                <div class="p-3 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-100 dark:border-amber-800/60 text-center">
+                                    <span class="text-xs text-amber-600 dark:text-amber-400">Unmarked</span>
+                                    <div id="dash-today-unmarked" class="text-2xl font-black text-amber-600 dark:text-amber-400 mt-0.5">0</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <button class="w-full py-2.5 rounded-xl text-xs font-bold bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 transition flex items-center justify-center gap-1.5" onclick="window.switchView('today')">
+                            <i data-lucide="check" class="w-3.5 h-3.5"></i> Mark Today's Attendance
+                        </button>
+                    </div>
+
+                    <!-- Quick Actions & Links Card -->
+                    <div class="bg-white dark:bg-slate-900 rounded-3xl p-6 sm:p-7 border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-between">
+                        <div>
+                            <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Quick Actions</span>
+                            <h3 class="text-base font-bold text-slate-900 dark:text-white mt-0.5 mb-4">Productivity Hub</h3>
+
+                            <div class="space-y-2">
+                                <button class="w-full flex items-center justify-between p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-semibold transition" onclick="window.appOpenAddSubjectModal()">
+                                    <span class="flex items-center gap-2.5"><i data-lucide="plus-circle" class="w-4 h-4 text-indigo-500"></i> Add New Subject</span>
+                                    <span class="text-slate-400">&rarr;</span>
+                                </button>
+                                <button class="w-full flex items-center justify-between p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-semibold transition" onclick="window.switchView('timetable')">
+                                    <span class="flex items-center gap-2.5"><i data-lucide="calendar" class="w-4 h-4 text-brand-500"></i> Configure Weekly Timetable</span>
+                                    <span class="text-slate-400">&rarr;</span>
+                                </button>
+                                <button class="w-full flex items-center justify-between p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-semibold transition" onclick="window.switchView('daterange')">
+                                    <span class="flex items-center gap-2.5"><i data-lucide="calendar-range" class="w-4 h-4 text-purple-500"></i> Custom Date Range Audit</span>
+                                    <span class="text-slate-400">&rarr;</span>
+                                </button>
+                                <button class="w-full flex items-center justify-between p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-semibold transition" onclick="window.appOpenExportModal('all')">
+                                    <span class="flex items-center gap-2.5"><i data-lucide="file-spreadsheet" class="w-4 h-4 text-emerald-500"></i> Export All to Excel</span>
+                                    <span class="text-slate-400">&rarr;</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs text-slate-400">
+                            <span>Target: <strong class="text-slate-700 dark:text-slate-300">75% Required</strong></span>
+                            <button class="hover:underline text-indigo-600 dark:text-indigo-400 font-semibold" onclick="window.switchView('settings')">Adjust</button>
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- Subject-wise Attendance Section -->
+                <div class="bg-white dark:bg-slate-900 rounded-3xl p-6 sm:p-8 border border-slate-200 dark:border-slate-800 shadow-sm">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+                        <div>
+                            <h3 class="text-lg font-bold text-slate-900 dark:text-white">Subject-wise Attendance</h3>
+                            <p class="text-xs text-slate-500 dark:text-slate-400">Click any subject card to launch the interactive Attendance Calculator</p>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <button class="px-3.5 py-2 rounded-xl text-xs font-bold bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 transition flex items-center gap-1.5" onclick="window.appOpenAddSubjectModal()">
+                                <i data-lucide="plus" class="w-3.5 h-3.5"></i> Add Subject
+                            </button>
+                            <button class="px-3.5 py-2 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white transition flex items-center gap-1.5" onclick="window.appOpenExportModal('all')">
+                                <i data-lucide="download" class="w-3.5 h-3.5"></i> Export Excel
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Subject Cards Grid -->
+                    <div id="dash-subjects-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5"></div>
+
+                    <!-- Subject Table View (Desktop Alternate) -->
+                    <div class="mt-8 pt-8 border-t border-slate-100 dark:border-slate-800 overflow-x-auto">
+                        <table class="w-full text-left text-sm text-slate-600 dark:text-slate-300">
+                            <thead class="text-xs uppercase bg-slate-50 dark:bg-slate-800/50 text-slate-400 border-b border-slate-100 dark:border-slate-800">
+                                <tr>
+                                    <th class="px-6 py-3 font-semibold">Subject</th>
+                                    <th class="px-6 py-3 font-semibold text-center">Attended</th>
+                                    <th class="px-6 py-3 font-semibold text-center">Total</th>
+                                    <th class="px-6 py-3 font-semibold text-center">Percentage</th>
+                                    <th class="px-6 py-3 font-semibold text-center">Status</th>
+                                    <th class="px-6 py-3 font-semibold text-right">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="dash-subjects-table-body" class="divide-y divide-slate-100 dark:divide-slate-800/60"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+            </section>
+
+            <!-- ================= VIEW 2: TODAY'S ATTENDANCE ================= -->
+            <section id="view-today" class="view-panel space-y-6 hidden">
+
+                <!-- Header and Date Controls -->
+                <div class="bg-white dark:bg-slate-900 rounded-3xl p-6 sm:p-8 border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-6">
+                    <div>
+                        <div class="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">
+                            <i data-lucide="calendar" class="w-4 h-4"></i>
+                            <span id="today-display-day">Today</span>
+                        </div>
+                        <h2 id="today-display-date" class="text-2xl font-black text-slate-900 dark:text-white mt-1">Today's Schedule</h2>
+                        <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Mark attendance period by period with instant calculation updates.</p>
+                    </div>
+
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <div class="flex items-center bg-slate-100 dark:bg-slate-800 rounded-2xl p-1 border border-slate-200 dark:border-slate-700">
+                            <button id="today-btn-prev" class="p-2 rounded-xl hover:bg-white dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 transition" title="Previous Day">
+                                <i data-lucide="chevron-left" class="w-4 h-4"></i>
+                            </button>
+                            <input type="date" id="today-date-picker" class="bg-transparent text-xs font-bold text-slate-800 dark:text-slate-200 px-2 py-1 outline-none">
+                            <button id="today-btn-next" class="p-2 rounded-xl hover:bg-white dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 transition" title="Next Day">
+                                <i data-lucide="chevron-right" class="w-4 h-4"></i>
+                            </button>
+                        </div>
+                        <button id="today-btn-today" class="px-3.5 py-2 rounded-xl text-xs font-bold bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 transition">
+                            Today
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Daily Summary Bar -->
+                <div class="grid grid-cols-2 sm:grid-cols-5 gap-3">
+                    <div class="bg-white dark:bg-slate-900 rounded-2xl p-4 border border-slate-200 dark:border-slate-800 shadow-sm text-center">
+                        <span class="text-xs text-slate-400 font-semibold">Total Scheduled</span>
+                        <div id="today-stat-total" class="text-xl font-black text-slate-900 dark:text-white mt-0.5">0</div>
+                    </div>
+                    <div class="bg-white dark:bg-slate-900 rounded-2xl p-4 border border-slate-200 dark:border-slate-800 shadow-sm text-center">
+                        <span class="text-xs text-emerald-600 dark:text-emerald-400 font-semibold">Present</span>
+                        <div id="today-stat-present" class="text-xl font-black text-emerald-600 dark:text-emerald-400 mt-0.5">0</div>
+                    </div>
+                    <div class="bg-white dark:bg-slate-900 rounded-2xl p-4 border border-slate-200 dark:border-slate-800 shadow-sm text-center">
+                        <span class="text-xs text-rose-600 dark:text-rose-400 font-semibold">Absent</span>
+                        <div id="today-stat-absent" class="text-xl font-black text-rose-600 dark:text-rose-400 mt-0.5">0</div>
+                    </div>
+                    <div class="bg-white dark:bg-slate-900 rounded-2xl p-4 border border-slate-200 dark:border-slate-800 shadow-sm text-center">
+                        <span class="text-xs text-amber-600 dark:text-amber-400 font-semibold">Unmarked</span>
+                        <div id="today-stat-unmarked" class="text-xl font-black text-amber-600 dark:text-amber-400 mt-0.5">0</div>
+                    </div>
+                    <div class="col-span-2 sm:col-span-1 bg-white dark:bg-slate-900 rounded-2xl p-4 border border-slate-200 dark:border-slate-800 shadow-sm text-center">
+                        <span class="text-xs text-indigo-600 dark:text-indigo-400 font-semibold">Today's %</span>
+                        <div id="today-stat-pct" class="text-xl font-black text-indigo-600 dark:text-indigo-400 mt-0.5">0%</div>
+                    </div>
+                </div>
+
+                <!-- Batch Actions Bar -->
+                <div class="flex items-center justify-between gap-3 flex-wrap">
+                    <span class="text-xs text-slate-500 font-medium">Batch Controls:</span>
+                    <div class="flex items-center gap-2">
+                        <button class="px-3.5 py-2 rounded-xl text-xs font-bold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 transition" onclick="window.appMarkAllToday('Present')">
+                            Mark All Present
+                        </button>
+                        <button class="px-3.5 py-2 rounded-xl text-xs font-bold bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 hover:bg-rose-100 transition" onclick="window.appMarkAllToday('Absent')">
+                            Mark All Absent
+                        </button>
+                        <button class="px-3.5 py-2 rounded-xl text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 transition" onclick="window.appClearAllToday()">
+                            Clear All Today
+                        </button>
+                    </div>
+                </div>
+
+                <!-- List of Periods for Today -->
+                <div id="today-periods-list" class="space-y-4"></div>
+
+            </section>
+
+            <!-- ================= VIEW 3: TIMETABLE ================= -->
+            <section id="view-timetable" class="view-panel space-y-6 hidden">
+
+                <div class="bg-white dark:bg-slate-900 rounded-3xl p-6 sm:p-8 border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-6">
+                    <div>
+                        <h2 class="text-2xl font-black text-slate-900 dark:text-white">Weekly Timetable</h2>
+                        <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Create and manage your schedule from Monday to Saturday.</p>
+                    </div>
+                    <div class="flex items-center gap-3 flex-wrap">
+                        <button class="px-4 py-2.5 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white transition shadow-sm flex items-center gap-2" onclick="window.appOpenAddPeriodModal()">
+                            <i data-lucide="plus" class="w-4 h-4"></i> Add Period
+                        </button>
+                        <button class="px-4 py-2.5 rounded-xl text-xs font-bold bg-indigo-50 dark:bg-indigo-950/60 hover:bg-indigo-100 text-indigo-700 dark:text-indigo-300 transition flex items-center gap-2" onclick="window.switchView('periods')">
+                            <i data-lucide="clock" class="w-4 h-4"></i> Manage Periods (<span id="timetable-period-slots-count">0</span>)
+                        </button>
+                        <button class="px-4 py-2.5 rounded-xl text-xs font-bold bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 transition flex items-center gap-2" onclick="window.appOpenDuplicateDayModal()">
+                            <i data-lucide="copy" class="w-4 h-4"></i> Duplicate Day
+                        </button>
+                        <button class="px-4 py-2.5 rounded-xl text-xs font-bold bg-rose-50 dark:bg-rose-950/40 hover:bg-rose-100 text-rose-700 dark:text-rose-300 transition flex items-center gap-2" onclick="window.appClearTimetableDay()">
+                            <i data-lucide="trash-2" class="w-4 h-4"></i> Clear Day
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Day Selector Tabs -->
+                <div id="timetable-days-tabs" class="flex items-center gap-2 overflow-x-auto pb-2"></div>
+
+                <!-- Periods List -->
+                <div id="timetable-periods-list" class="space-y-4"></div>
+
+            </section>
+
+            <!-- ================= VIEW: PERIOD SLOTS MANAGEMENT ================= -->
+            <section id="view-periods" class="view-panel space-y-6 hidden">
+
+                <div class="bg-white dark:bg-slate-900 rounded-3xl p-6 sm:p-8 border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-6">
+                    <div>
+                        <div class="flex items-center gap-2 mb-1">
+                            <span class="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-indigo-50 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-400">Master Schedule</span>
+                            <span class="text-xs text-slate-400">&bull; Daily Structure</span>
+                        </div>
+                        <h2 class="text-2xl font-black text-slate-900 dark:text-white">Daily Period Slots</h2>
+                        <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Configure your daily periods (timings & numbers) separately, then assign subjects to these periods on your weekly timetable.</p>
+                    </div>
+                    <div class="flex items-center gap-3 flex-wrap">
+                        <button class="px-4 py-2.5 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white transition shadow-sm flex items-center gap-2" onclick="window.appOpenCreatePeriodSlotModal()">
+                            <i data-lucide="plus" class="w-4 h-4"></i> Create New Period
+                        </button>
+                        <button class="px-4 py-2.5 rounded-xl text-xs font-bold bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 transition flex items-center gap-2" onclick="window.switchView('timetable')">
+                            <i data-lucide="calendar" class="w-4 h-4"></i> Go to Timetable
+                        </button>
+                        <button class="px-3.5 py-2.5 rounded-xl text-xs font-semibold text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 transition" onclick="window.appResetPeriodSlotsDefaults()" title="Reset to standard 6 periods">
+                            <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Info guide banner -->
+                <div class="bg-indigo-50/50 dark:bg-indigo-950/20 border border-indigo-100 dark:border-indigo-900/40 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
+                    <div class="flex items-center gap-3 text-indigo-900 dark:text-indigo-300">
+                        <div class="w-8 h-8 rounded-xl bg-indigo-100 dark:bg-indigo-900/60 flex items-center justify-center flex-shrink-0 text-indigo-600 dark:text-indigo-400">
+                            <i data-lucide="info" class="w-4 h-4"></i>
+                        </div>
+                        <span><strong>Period Setup Guide:</strong> Create or delete period slots here. In your Weekly Timetable, you can assign subjects to these slots for Monday through Saturday with one click.</span>
+                    </div>
+                    <button class="px-3.5 py-1.5 rounded-xl bg-indigo-600 text-white font-bold hover:bg-indigo-700 transition flex-shrink-0" onclick="window.appOpenCreatePeriodSlotModal()">
+                        + Add Period Slot
+                    </button>
+                </div>
+
+                <!-- Period Slots Grid -->
+                <div id="periods-slots-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+
+            </section>
+
+            <!-- ================= VIEW 4: ATTENDANCE RECORDS (HISTORY) ================= -->
+            <section id="view-records" class="view-panel space-y-6 hidden">
+
+                <div class="bg-white dark:bg-slate-900 rounded-3xl p-6 sm:p-8 border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-6">
+                    <div>
+                        <h2 class="text-2xl font-black text-slate-900 dark:text-white">Attendance Logs</h2>
+                        <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Full history of recorded periods with multi-parameter filtering and sorting.</p>
+                    </div>
+                    <button class="px-4 py-2.5 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white transition flex items-center gap-2 shadow-sm" onclick="window.appExportLogsExcel()">
+                        <i data-lucide="download" class="w-4 h-4"></i> Export Logs to Excel
+                    </button>
+                </div>
+
+                <!-- Filter Controls -->
+                <div class="bg-white dark:bg-slate-900 rounded-3xl p-5 border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-500 mb-1">From Date</label>
+                            <input type="date" id="records-filter-from" class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs font-medium text-slate-800 dark:text-slate-200">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-500 mb-1">To Date</label>
+                            <input type="date" id="records-filter-to" class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs font-medium text-slate-800 dark:text-slate-200">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-500 mb-1">Subject</label>
+                            <select id="records-filter-subject" class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs font-medium text-slate-800 dark:text-slate-200">
+                                <option value="">All Subjects</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-500 mb-1">Status</label>
+                            <select id="records-filter-status" class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs font-medium text-slate-800 dark:text-slate-200">
+                                <option value="">All Statuses</option>
+                                <option value="Present">Present Only</option>
+                                <option value="Absent">Absent Only</option>
+                            </select>
+                        </div>
+                        <div class="flex items-end gap-2">
+                            <div class="flex-1">
+                                <label class="block text-xs font-semibold text-slate-500 mb-1">Order</label>
+                                <select id="records-filter-order" class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs font-medium text-slate-800 dark:text-slate-200">
+                                    <option value="DESC">Newest First</option>
+                                    <option value="ASC">Oldest First</option>
+                                </select>
+                            </div>
+                            <button id="records-filter-reset" class="px-3 py-2 rounded-xl text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 transition" title="Reset Filters">
+                                Reset
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Dynamic stats on filtered records -->
+                    <div id="records-stats-summary" class="text-xs text-slate-500 pt-2 border-t border-slate-100 dark:border-slate-800"></div>
+                </div>
+
+                <!-- Table Container -->
+                <div class="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-sm text-slate-600 dark:text-slate-300">
+                            <thead class="text-xs uppercase bg-slate-50 dark:bg-slate-800/50 text-slate-400 border-b border-slate-100 dark:border-slate-800">
+                                <tr>
+                                    <th class="px-6 py-3 font-semibold">Date</th>
+                                    <th class="px-6 py-3 font-semibold text-center">Period</th>
+                                    <th class="px-6 py-3 font-semibold">Subject</th>
+                                    <th class="px-6 py-3 font-semibold">Time Slot</th>
+                                    <th class="px-6 py-3 font-semibold text-center">Status</th>
+                                    <th class="px-6 py-3 font-semibold text-right">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="records-table-body" class="divide-y divide-slate-100 dark:divide-slate-800/60"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+            </section>
+
+            <!-- ================= VIEW 5: CUSTOM DATE RANGE ATTENDANCE ================= -->
+            <section id="view-daterange" class="view-panel space-y-6 hidden">
+
+                <div class="bg-white dark:bg-slate-900 rounded-3xl p-6 sm:p-8 border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-6">
+                    <div>
+                        <h2 class="text-2xl font-black text-slate-900 dark:text-white">Custom Date Range Attendance</h2>
+                        <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Audit and analyze attendance exclusively within any custom date boundaries.</p>
+                    </div>
+                    <button class="px-4 py-2.5 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white transition flex items-center gap-2 shadow-sm" onclick="window.appOpenExportModal('range')">
+                        <i data-lucide="download" class="w-4 h-4"></i> Export Range to Excel
+                    </button>
+                </div>
+
+                <!-- Range Selection Bar -->
+                <div class="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <span class="text-xs font-semibold text-slate-400 mr-1">Presets:</span>
+                        <button class="px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-300 transition" onclick="window.appApplyDateRangePreset('week')">This Week</button>
+                        <button class="px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-300 transition" onclick="window.appApplyDateRangePreset('month')">This Month</button>
+                        <button class="px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-300 transition" onclick="window.appApplyDateRangePreset('last30')">Last 30 Days</button>
+                        <button class="px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-300 transition" onclick="window.appApplyDateRangePreset('semester')">Semester to Date</button>
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-500 mb-1">From Date</label>
+                            <input type="date" id="range-from-date" class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs font-bold text-slate-800 dark:text-slate-200">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-500 mb-1">To Date</label>
+                            <input type="date" id="range-to-date" class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs font-bold text-slate-800 dark:text-slate-200">
+                        </div>
+                        <div class="flex items-end">
+                            <button class="w-full py-2.5 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white transition flex items-center justify-center gap-2 shadow-sm" onclick="window.loadDateRangeAnalysis()">
+                                <i data-lucide="search" class="w-4 h-4"></i> Calculate Range
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Range KPI Cards -->
+                <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div class="bg-white dark:bg-slate-900 rounded-2xl p-5 border border-slate-200 dark:border-slate-800 shadow-sm text-center">
+                        <span class="text-xs text-slate-400 font-semibold">Attendance in Range</span>
+                        <div id="range-pct-text" class="text-2xl font-black text-indigo-600 dark:text-indigo-400 mt-1">0%</div>
+                    </div>
+                    <div class="bg-white dark:bg-slate-900 rounded-2xl p-5 border border-slate-200 dark:border-slate-800 shadow-sm text-center">
+                        <span class="text-xs text-slate-400 font-semibold">Classes Conducted</span>
+                        <div id="range-total-classes" class="text-2xl font-black text-slate-900 dark:text-white mt-1">0</div>
+                    </div>
+                    <div class="bg-white dark:bg-slate-900 rounded-2xl p-5 border border-slate-200 dark:border-slate-800 shadow-sm text-center">
+                        <span class="text-xs text-emerald-600 dark:text-emerald-400 font-semibold">Attended</span>
+                        <div id="range-attended-classes" class="text-2xl font-black text-emerald-600 dark:text-emerald-400 mt-1">0</div>
+                    </div>
+                    <div class="bg-white dark:bg-slate-900 rounded-2xl p-5 border border-slate-200 dark:border-slate-800 shadow-sm text-center">
+                        <span class="text-xs text-rose-600 dark:text-rose-400 font-semibold">Absent</span>
+                        <div id="range-absent-classes" class="text-2xl font-black text-rose-600 dark:text-rose-400 mt-1">0</div>
+                    </div>
+                </div>
+
+                <!-- Range Chart -->
+                <div class="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200 dark:border-slate-800 shadow-sm">
+                    <h3 class="text-base font-bold text-slate-900 dark:text-white mb-4">Subject Attendance Comparison in Selected Range</h3>
+                    <div class="h-64">
+                        <canvas id="chart-range-comparison"></canvas>
+                    </div>
+                </div>
+
+                <!-- Range Subject Table -->
+                <div class="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
+                    <div class="p-6 border-b border-slate-100 dark:border-slate-800">
+                        <h3 class="text-base font-bold text-slate-900 dark:text-white">Subject Breakdown (Selected Date Range)</h3>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-sm text-slate-600 dark:text-slate-300">
+                            <thead class="text-xs uppercase bg-slate-50 dark:bg-slate-800/50 text-slate-400 border-b border-slate-100 dark:border-slate-800">
+                                <tr>
+                                    <th class="px-6 py-3 font-semibold">Subject</th>
+                                    <th class="px-6 py-3 font-semibold text-center">Attended</th>
+                                    <th class="px-6 py-3 font-semibold text-center">Absent</th>
+                                    <th class="px-6 py-3 font-semibold text-center">Total</th>
+                                    <th class="px-6 py-3 font-semibold text-center">Percentage</th>
+                                    <th class="px-6 py-3 font-semibold text-center">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="range-subjects-table-body" class="divide-y divide-slate-100 dark:divide-slate-800/60"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+            </section>
+
+            <!-- ================= VIEW 6: MONTHLY ANALYTICS ================= -->
+            <section id="view-analytics" class="view-panel space-y-6 hidden">
+
+                <div class="bg-white dark:bg-slate-900 rounded-3xl p-6 sm:p-8 border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-6">
+                    <div>
+                        <h2 class="text-2xl font-black text-slate-900 dark:text-white">Monthly Analytics</h2>
+                        <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Visualize historical trends, monthly distribution, and subject health.</p>
+                    </div>
+                    <button class="px-4 py-2.5 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white transition flex items-center gap-2 shadow-sm" onclick="window.appExportAnalyticsExcel()">
+                        <i data-lucide="download" class="w-4 h-4"></i> Export Analytics
+                    </button>
+                </div>
+
+                <!-- Charts Grid -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <!-- Trend Line -->
+                    <div class="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200 dark:border-slate-800 shadow-sm">
+                        <h3 class="text-base font-bold text-slate-900 dark:text-white mb-4">Attendance Percentage Trend</h3>
+                        <div class="h-64">
+                            <canvas id="chart-analytics-trend"></canvas>
+                        </div>
+                    </div>
+                    <!-- Monthly Bar -->
+                    <div class="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200 dark:border-slate-800 shadow-sm">
+                        <h3 class="text-base font-bold text-slate-900 dark:text-white mb-4">Attended vs Absent per Month</h3>
+                        <div class="h-64">
+                            <canvas id="chart-analytics-monthly-bar"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Subject-wise Health Chart -->
+                <div class="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200 dark:border-slate-800 shadow-sm">
+                    <h3 class="text-base font-bold text-slate-900 dark:text-white mb-4">Subject Attendance Distribution</h3>
+                    <div class="h-64">
+                        <canvas id="chart-analytics-subjects"></canvas>
+                    </div>
+                </div>
+
+                <!-- Monthly Summary Table -->
+                <div class="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
+                    <div class="p-6 border-b border-slate-100 dark:border-slate-800">
+                        <h3 class="text-base font-bold text-slate-900 dark:text-white">Monthly Summary Table</h3>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-sm text-slate-600 dark:text-slate-300">
+                            <thead class="text-xs uppercase bg-slate-50 dark:bg-slate-800/50 text-slate-400 border-b border-slate-100 dark:border-slate-800">
+                                <tr>
+                                    <th class="px-6 py-3 font-semibold">Month</th>
+                                    <th class="px-6 py-3 font-semibold text-center">Attended</th>
+                                    <th class="px-6 py-3 font-semibold text-center">Absent</th>
+                                    <th class="px-6 py-3 font-semibold text-center">Total</th>
+                                    <th class="px-6 py-3 font-semibold text-center">Percentage</th>
+                                </tr>
+                            </thead>
+                            <tbody id="analytics-monthly-table-body" class="divide-y divide-slate-100 dark:divide-slate-800/60"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+            </section>
+
+            <!-- ================= VIEW 7: CALENDAR VIEW ================= -->
+            <section id="view-calendar" class="view-panel space-y-6 hidden">
+
+                <div class="bg-white dark:bg-slate-900 rounded-3xl p-6 sm:p-8 border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-6">
+                    <div>
+                        <h2 class="text-2xl font-black text-slate-900 dark:text-white">Calendar View</h2>
+                        <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Monthly calendar overview. Click any date to view and mark attendance.</p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button class="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-300 transition" onclick="window.appChangeCalendarMonth(-1)">
+                            <i data-lucide="chevron-left" class="w-5 h-5"></i>
+                        </button>
+                        <span id="cal-month-label" class="text-sm font-bold text-slate-800 dark:text-slate-200 px-3">October 2026</span>
+                        <button class="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-300 transition" onclick="window.appChangeCalendarMonth(1)">
+                            <i data-lucide="chevron-right" class="w-5 h-5"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Calendar Legend -->
+                <div class="flex items-center gap-4 text-xs font-semibold text-slate-500 flex-wrap">
+                    <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span> 100% Present</span>
+                    <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-amber-500"></span> Mixed / Partial</span>
+                    <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-rose-500"></span> All Absent</span>
+                    <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-slate-300 dark:bg-slate-700"></span> No Classes</span>
+                </div>
+
+                <!-- Calendar Grid Container -->
+                <div class="bg-white dark:bg-slate-900 rounded-3xl p-4 sm:p-6 border border-slate-200 dark:border-slate-800 shadow-sm">
+                    <!-- Weekday Headers -->
+                    <div class="grid grid-cols-7 gap-2 text-center text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">
+                        <div>Sun</div><div>Mon</div><div>Tue</div><div>Wed</div><div>Thu</div><div>Fri</div><div>Sat</div>
+                    </div>
+                    <!-- Days Grid -->
+                    <div id="calendar-days-grid" class="grid grid-cols-7 gap-2"></div>
+                </div>
+
+            </section>
+
+            <!-- ================= VIEW 8: SETTINGS & DATA ================= -->
+            <section id="view-settings" class="view-panel space-y-6 hidden">
+
+                <div class="bg-white dark:bg-slate-900 rounded-3xl p-6 sm:p-8 border border-slate-200 dark:border-slate-800 shadow-sm">
+                    <h2 class="text-2xl font-black text-slate-900 dark:text-white">Settings & Data Management</h2>
+                    <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Configure threshold percentages, college profile, and manage data backups.</p>
+                </div>
+
+                <!-- Settings Form -->
+                <form onsubmit="window.appSaveSettings(event)" class="bg-white dark:bg-slate-900 rounded-3xl p-6 sm:p-8 border border-slate-200 dark:border-slate-800 shadow-sm space-y-6">
+                    <h3 class="text-base font-bold text-slate-900 dark:text-white border-b border-slate-100 dark:border-slate-800 pb-3">Attendance Threshold Rules</h3>
+
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Required Target %</label>
+                            <input type="number" step="0.1" id="setting-required-att" class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm font-semibold text-slate-800 dark:text-slate-200" required>
+                            <p class="text-[11px] text-slate-400 mt-1">Default 75.0%. Target used in all predictions.</p>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Warning Threshold %</label>
+                            <input type="number" step="0.1" id="setting-warning-th" class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm font-semibold text-slate-800 dark:text-slate-200" required>
+                            <p class="text-[11px] text-slate-400 mt-1">Marks subjects as Warning if below this value.</p>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Critical Threshold %</label>
+                            <input type="number" step="0.1" id="setting-critical-th" class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm font-semibold text-slate-800 dark:text-slate-200" required>
+                            <p class="text-[11px] text-slate-400 mt-1">Marks subjects as Critical (Red) below this value.</p>
+                        </div>
+                    </div>
+
+                    <h3 class="text-base font-bold text-slate-900 dark:text-white border-b border-slate-100 dark:border-slate-800 pb-3 pt-4">College Profile & Appearance</h3>
+
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">College / Institute Name</label>
+                            <input type="text" id="setting-college-name" class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm font-semibold text-slate-800 dark:text-slate-200">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Student Name</label>
+                            <input type="text" id="setting-student-name" class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm font-semibold text-slate-800 dark:text-slate-200">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Theme</label>
+                            <select id="setting-theme" class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm font-semibold text-slate-800 dark:text-slate-200">
+                                <option value="system">System Mode</option>
+                                <option value="light">Light Mode</option>
+                                <option value="dark">Dark Mode</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="flex justify-end pt-4">
+                        <button type="submit" class="px-6 py-2.5 rounded-xl text-sm font-bold bg-indigo-600 hover:bg-indigo-700 text-white transition shadow-sm">
+                            Save Settings
+                        </button>
+                    </div>
+                </form>
+
+                <!-- Data Backup & Reset Section -->
+                <div class="bg-white dark:bg-slate-900 rounded-3xl p-6 sm:p-8 border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
+                    <h3 class="text-base font-bold text-slate-900 dark:text-white border-b border-slate-100 dark:border-slate-800 pb-3">Data Protection & Reset</h3>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
+                        <button class="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 text-left hover:border-indigo-400 transition" onclick="window.appExportBackup()">
+                            <i data-lucide="download-cloud" class="w-6 h-6 text-indigo-500 mb-2"></i>
+                            <div class="font-bold text-sm text-slate-900 dark:text-white">Export Backup</div>
+                            <div class="text-xs text-slate-400 mt-1">Download complete JSON backup file</div>
+                        </button>
+
+                        <button class="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 text-left hover:border-indigo-400 transition" onclick="window.appImportBackup()">
+                            <i data-lucide="upload-cloud" class="w-6 h-6 text-emerald-500 mb-2"></i>
+                            <div class="font-bold text-sm text-slate-900 dark:text-white">Import Backup</div>
+                            <div class="text-xs text-slate-400 mt-1">Restore your saved timetable & records</div>
+                        </button>
+
+                        <button class="p-4 rounded-2xl bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-800/60 text-left hover:border-rose-400 transition" onclick="window.appClearAllAttendanceRecords()">
+                            <i data-lucide="eraser" class="w-6 h-6 text-rose-500 mb-2"></i>
+                            <div class="font-bold text-sm text-rose-700 dark:text-rose-400">Clear Attendance Records</div>
+                            <div class="text-xs text-rose-500/80 mt-1">Clears past attendance, keeps timetable</div>
+                        </button>
+                    </div>
+
+                    <div class="pt-4 border-t border-slate-100 dark:border-slate-800 flex justify-end">
+                        <button class="px-4 py-2 rounded-xl text-xs font-bold bg-rose-600 hover:bg-rose-700 text-white transition flex items-center gap-1.5" onclick="window.appResetFactory()">
+                            <i data-lucide="alert-octagon" class="w-4 h-4"></i> Factory Reset Application
+                        </button>
+                    </div>
+                </div>
+
+            </section>
+
+        </main>
+    </div>
+
+    <!-- Mobile Bottom Navigation Bar -->
+    <nav class="md:hidden fixed bottom-0 left-0 right-0 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-t border-slate-200 dark:border-slate-800 px-2 py-2 flex items-center justify-around z-40">
+        <button data-mobile-nav="dashboard" class="flex flex-col items-center gap-1 text-[10px] font-bold text-slate-400 p-1">
+            <i data-lucide="layout-dashboard" class="w-5 h-5"></i>
+            <span>Home</span>
+        </button>
+        <button data-mobile-nav="today" class="flex flex-col items-center gap-1 text-[10px] font-bold text-slate-400 p-1">
+            <i data-lucide="check-circle-2" class="w-5 h-5"></i>
+            <span>Today</span>
+        </button>
+        <button data-mobile-nav="timetable" class="flex flex-col items-center gap-1 text-[10px] font-bold text-slate-400 p-1">
+            <i data-lucide="calendar-clock" class="w-5 h-5"></i>
+            <span>Timetable</span>
+        </button>
+        <button data-mobile-nav="records" class="flex flex-col items-center gap-1 text-[10px] font-bold text-slate-400 p-1">
+            <i data-lucide="history" class="w-5 h-5"></i>
+            <span>Logs</span>
+        </button>
+        <button data-mobile-nav="daterange" class="flex flex-col items-center gap-1 text-[10px] font-bold text-slate-400 p-1">
+            <i data-lucide="calendar-range" class="w-5 h-5"></i>
+            <span>Range</span>
+        </button>
+        <button data-mobile-nav="calendar" class="flex flex-col items-center gap-1 text-[10px] font-bold text-slate-400 p-1">
+            <i data-lucide="calendar" class="w-5 h-5"></i>
+            <span>Calendar</span>
+        </button>
+    </nav>
+
+    <!-- ================= MODALS ================= -->
+
+    <!-- Modal 1: Subject Details & Interactive Calculator -->
+    <div id="modal-subject-details" class="modal-overlay fixed inset-0 z-50 flex items-center justify-center p-4 hidden">
+        <div class="modal-content bg-white dark:bg-slate-900 rounded-3xl p-6 sm:p-8 max-w-2xl w-full border border-slate-200 dark:border-slate-800 shadow-2xl max-h-[90vh] overflow-y-auto space-y-6">
+            
+            <!-- Header -->
+            <div class="flex items-start justify-between gap-4 border-b border-slate-100 dark:border-slate-800 pb-4">
+                <div>
+                    <div class="flex items-center gap-2">
+                        <span id="sub-modal-code" class="text-xs font-bold px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300"></span>
+                        <span id="sub-modal-room" class="text-xs text-slate-400"></span>
+                    </div>
+                    <h2 id="sub-modal-name" class="text-xl font-black text-slate-900 dark:text-white mt-1"></h2>
+                    <p id="sub-modal-faculty" class="text-xs text-slate-500 dark:text-slate-400"></p>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button class="p-2 rounded-xl text-slate-400 hover:text-emerald-600 hover:bg-slate-100 dark:hover:bg-slate-800 transition" onclick="window.appOpenExportModal('subject', state.selectedSubject?.id)" title="Export Subject to Excel">
+                        <i data-lucide="file-spreadsheet" class="w-4 h-4"></i>
+                    </button>
+                    <button class="p-2 rounded-xl text-slate-400 hover:text-indigo-600 hover:bg-slate-100 dark:hover:bg-slate-800 transition" onclick="window.appOpenEditSubjectModal()" title="Edit Subject">
+                        <i data-lucide="edit-2" class="w-4 h-4"></i>
+                    </button>
+                    <button class="p-2 rounded-xl text-slate-400 hover:text-rose-600 hover:bg-slate-100 dark:hover:bg-slate-800 transition" onclick="window.appDeleteCurrentSubject()" title="Delete Subject">
+                        <i data-lucide="trash-2" class="w-4 h-4"></i>
+                    </button>
+                    <button data-modal-close class="p-2 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+                        <i data-lucide="x" class="w-5 h-5"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Current Stats Bar -->
+            <div class="grid grid-cols-4 gap-3 text-center">
+                <div class="p-3 rounded-2xl bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-100 dark:border-indigo-800/60">
+                    <span class="text-[11px] text-indigo-600 dark:text-indigo-400 font-bold uppercase">Current %</span>
+                    <div id="sub-modal-pct" class="text-2xl font-black text-indigo-600 dark:text-indigo-400 mt-0.5">0%</div>
+                </div>
+                <div class="p-3 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-100 dark:border-emerald-800/60">
+                    <span class="text-[11px] text-emerald-600 dark:text-emerald-400 font-bold uppercase">Attended</span>
+                    <div id="sub-modal-attended" class="text-2xl font-black text-emerald-600 dark:text-emerald-400 mt-0.5">0</div>
+                </div>
+                <div class="p-3 rounded-2xl bg-rose-50 dark:bg-rose-950/40 border border-rose-100 dark:border-rose-800/60">
+                    <span class="text-[11px] text-rose-600 dark:text-rose-400 font-bold uppercase">Missed</span>
+                    <div id="sub-modal-missed" class="text-2xl font-black text-rose-600 dark:text-rose-400 mt-0.5">0</div>
+                </div>
+                <div class="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800">
+                    <span class="text-[11px] text-slate-400 font-bold uppercase">Total</span>
+                    <div id="sub-modal-total" class="text-2xl font-black text-slate-900 dark:text-white mt-0.5">0</div>
+                </div>
+            </div>
+
+            <!-- Interactive Attendance Calculator Section -->
+            <div class="p-5 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800 space-y-4">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-2">
+                        <i data-lucide="calculator" class="w-5 h-5 text-indigo-600 dark:text-indigo-400"></i>
+                        <h4 class="font-bold text-sm text-slate-900 dark:text-white">Attendance Calculator & Prediction</h4>
+                    </div>
+                    <div class="text-xs font-semibold text-slate-500">
+                        Target: <span id="sub-calc-target-val" class="text-indigo-600 dark:text-indigo-400 font-bold">75%</span>
+                    </div>
+                </div>
+
+                <!-- Target Slider -->
+                <div>
+                    <input type="range" id="sub-calc-target-slider" min="50" max="100" step="1" value="75" class="w-full h-2 bg-slate-200 dark:bg-slate-700 rounded-lg appearance-none cursor-pointer accent-indigo-600">
+                    <div class="flex justify-between text-[10px] text-slate-400 font-bold mt-1">
+                        <span>50%</span>
+                        <span>65% (Critical)</span>
+                        <span>75% (Standard)</span>
+                        <span>85%</span>
+                        <span>100%</span>
+                    </div>
+                </div>
+
+                <!-- Calculator Prediction Boxes -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+                    <div id="sub-calc-can-miss-box"></div>
+                    <div id="sub-calc-need-attend-box"></div>
+                </div>
+
+                <!-- What-if Simulator -->
+                <div class="mt-4 pt-4 border-t border-slate-200 dark:border-slate-700">
+                    <span class="text-xs font-bold text-slate-700 dark:text-slate-300">What-if Simulator:</span>
+                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-2 items-center">
+                        <div>
+                            <label class="block text-[10px] text-slate-400 font-bold mb-1">If I attend next</label>
+                            <input type="number" id="sim-input-attend" min="0" value="0" class="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-1.5 text-xs font-bold text-center">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] text-slate-400 font-bold mb-1">And miss next</label>
+                            <input type="number" id="sim-input-miss" min="0" value="0" class="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-1.5 text-xs font-bold text-center">
+                        </div>
+                        <div class="col-span-2 p-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 flex items-center justify-between">
+                            <span class="text-xs text-slate-500 font-medium">New %:</span>
+                            <div class="flex items-center gap-2">
+                                <span id="sim-result-pct" class="font-black text-slate-900 dark:text-white text-base">0%</span>
+                                <span id="sim-result-diff" class="text-xs"></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Monthly History Accordion / List -->
+            <div>
+                <h4 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Monthly Breakdown</h4>
+                <div id="sub-modal-monthly" class="space-y-1"></div>
+            </div>
+
+            <!-- Recent Records -->
+            <div>
+                <h4 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Recent Attendance Records</h4>
+                <div id="sub-modal-history" class="space-y-1 max-h-48 overflow-y-auto"></div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Modal 2: Add / Edit Subject Form -->
+    <div id="modal-subject-form" class="modal-overlay fixed inset-0 z-50 flex items-center justify-center p-4 hidden">
+        <form onsubmit="window.appSaveSubjectForm(event)" class="modal-content bg-white dark:bg-slate-900 rounded-3xl p-6 sm:p-8 max-w-md w-full border border-slate-200 dark:border-slate-800 shadow-2xl space-y-4">
+            <input type="hidden" id="subject-form-id">
+            <div class="flex items-center justify-between">
+                <h3 id="subject-form-title" class="text-lg font-bold text-slate-900 dark:text-white">Add Subject</h3>
+                <button type="button" data-modal-close class="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <div>
+                <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Subject Name *</label>
+                <input type="text" id="sub-input-name" placeholder="e.g. Data Structures" required class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm font-semibold text-slate-800 dark:text-slate-200">
+            </div>
+
+            <div>
+                <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Subject Code *</label>
+                <input type="text" id="sub-input-code" placeholder="e.g. CS301" required class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm font-semibold text-slate-800 dark:text-slate-200">
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Faculty Name</label>
+                    <input type="text" id="sub-input-faculty" placeholder="e.g. Dr. Robert" class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2 text-xs font-semibold text-slate-800 dark:text-slate-200">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Room / Lab</label>
+                    <input type="text" id="sub-input-room" placeholder="e.g. Lab 3" class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2 text-xs font-semibold text-slate-800 dark:text-slate-200">
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Card Accent Color</label>
+                <input type="color" id="sub-input-color" value="#3B82F6" class="w-full h-10 bg-transparent rounded-xl cursor-pointer">
+            </div>
+
+            <div class="flex items-center justify-end gap-3 pt-3">
+                <button type="button" data-modal-close class="px-4 py-2 rounded-xl text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">Cancel</button>
+                <button type="submit" class="px-5 py-2 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white">Save Subject</button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Modal: Create / Edit Period Slot (Master Period) -->
+    <div id="modal-period-slot-form" class="modal-overlay fixed inset-0 z-50 flex items-center justify-center p-4 hidden">
+        <form onsubmit="window.appSavePeriodSlotForm(event)" class="modal-content bg-white dark:bg-slate-900 rounded-3xl p-6 sm:p-8 max-w-md w-full border border-slate-200 dark:border-slate-800 shadow-2xl space-y-4">
+            <input type="hidden" id="slot-form-id">
+
+            <div class="flex items-center justify-between">
+                <div>
+                    <h3 id="slot-form-title" class="text-lg font-bold text-slate-900 dark:text-white">Create New Period Slot</h3>
+                    <p class="text-xs text-slate-500">Configure standard period timings</p>
+                </div>
+                <button type="button" data-modal-close class="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Period Number *</label>
+                    <input type="number" id="slot-input-number" min="1" max="20" required placeholder="1" class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2.5 text-sm font-bold text-center">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Label (Optional)</label>
+                    <input type="text" id="slot-input-label" placeholder="e.g. Period 1, Lab Slot" class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2.5 text-xs font-semibold">
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Start Time *</label>
+                    <input type="time" id="slot-input-start" required class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2.5 text-xs font-semibold">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">End Time *</label>
+                    <input type="time" id="slot-input-end" required class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2.5 text-xs font-semibold">
+                </div>
+            </div>
+
+            <div class="flex items-center justify-between gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
+                <button type="button" id="slot-form-delete-btn" onclick="window.appDeletePeriodSlotFromForm()" class="px-4 py-2 rounded-xl text-xs font-bold bg-rose-50 text-rose-600 hover:bg-rose-100 dark:bg-rose-950/40 dark:text-rose-400 dark:hover:bg-rose-900/60 transition flex items-center gap-1.5 hidden">
+                    <i data-lucide="trash-2" class="w-3.5 h-3.5"></i> Delete Slot
+                </button>
+                <div class="flex items-center gap-2 ml-auto">
+                    <button type="button" data-modal-close class="px-4 py-2 rounded-xl text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">Cancel</button>
+                    <button type="submit" class="px-5 py-2 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white">Save Slot</button>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <!-- Modal 3: Add / Edit Timetable Period Form -->
+    <div id="modal-period-form" class="modal-overlay fixed inset-0 z-50 flex items-center justify-center p-4 hidden">
+        <form onsubmit="window.appSavePeriodForm(event)" class="modal-content bg-white dark:bg-slate-900 rounded-3xl p-6 sm:p-8 max-w-md w-full border border-slate-200 dark:border-slate-800 shadow-2xl space-y-4">
+            <input type="hidden" id="period-form-id">
+            <input type="hidden" id="period-input-day">
+            
+            <div class="flex items-center justify-between">
+                <div>
+                    <h3 id="period-form-title" class="text-lg font-bold text-slate-900 dark:text-white">Add Period to Timetable</h3>
+                    <p id="period-form-subtitle" class="text-xs text-slate-500">Assign a period slot and subject</p>
+                </div>
+                <button type="button" data-modal-close class="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <!-- CHOOSE FROM CREATED PERIODS DROPDOWN -->
+            <div class="bg-indigo-50/50 dark:bg-indigo-950/20 p-3.5 rounded-2xl border border-indigo-100 dark:border-indigo-900/40 space-y-1.5">
+                <div class="flex items-center justify-between">
+                    <label class="block text-xs font-bold text-indigo-950 dark:text-indigo-300">Choose Period Slot *</label>
+                    <button type="button" class="text-[11px] font-bold text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1" onclick="window.appOpenCreatePeriodSlotModal(true)">
+                        <i data-lucide="plus-circle" class="w-3 h-3"></i> + New Slot
+                    </button>
+                </div>
+                <select id="period-select-slot" onchange="window.appOnPeriodSlotSelect(this.value)" class="w-full bg-white dark:bg-slate-800 border border-indigo-200 dark:border-indigo-800 rounded-xl px-3 py-2 text-xs font-semibold text-slate-800 dark:text-slate-200">
+                </select>
+            </div>
+
+            <div>
+                <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Select Subject *</label>
+                <select id="period-input-subject" required class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm font-semibold text-slate-800 dark:text-slate-200"></select>
+            </div>
+
+            <div class="grid grid-cols-3 gap-3">
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Period #</label>
+                    <input type="number" id="period-input-num" min="1" max="20" value="1" required class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs font-bold text-center">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Start Time</label>
+                    <input type="time" id="period-input-start" required class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-2 py-2 text-xs font-semibold">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">End Time</label>
+                    <input type="time" id="period-input-end" required class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-2 py-2 text-xs font-semibold">
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block text-xs font-medium text-slate-500 mb-1">Room (Optional)</label>
+                    <input type="text" id="period-input-room" placeholder="e.g. Room 301" class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs font-medium">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-slate-500 mb-1">Faculty (Optional)</label>
+                    <input type="text" id="period-input-faculty" placeholder="e.g. Dr. Smith" class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs font-medium">
+                </div>
+            </div>
+
+            <div class="flex items-center justify-between gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
+                <button type="button" id="period-form-delete-btn" onclick="window.appDeletePeriodFromForm()" class="px-4 py-2 rounded-xl text-xs font-bold bg-rose-50 text-rose-600 hover:bg-rose-100 dark:bg-rose-950/40 dark:text-rose-400 dark:hover:bg-rose-900/60 transition flex items-center gap-1.5 hidden">
+                    <i data-lucide="trash-2" class="w-3.5 h-3.5"></i> Delete Period
+                </button>
+                <div class="flex items-center gap-2 ml-auto">
+                    <button type="button" data-modal-close class="px-4 py-2 rounded-xl text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">Cancel</button>
+                    <button type="submit" class="px-5 py-2 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white">Save Period</button>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <!-- Modal 4: Duplicate Timetable Day -->
+    <div id="modal-duplicate-day" class="modal-overlay fixed inset-0 z-50 flex items-center justify-center p-4 hidden">
+        <div class="modal-content bg-white dark:bg-slate-900 rounded-3xl p-6 sm:p-8 max-w-lg w-full border border-slate-200 dark:border-slate-800 shadow-2xl space-y-5">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                    <div class="w-9 h-9 rounded-xl bg-indigo-100 dark:bg-indigo-950 flex items-center justify-center text-indigo-600 dark:text-indigo-400">
+                        <i data-lucide="copy" class="w-5 h-5"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-lg font-bold text-slate-900 dark:text-white">Duplicate Timetable</h3>
+                        <p class="text-xs text-slate-500">Copy scheduled periods between days</p>
+                    </div>
+                </div>
+                <button type="button" data-modal-close class="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <!-- Empty warning alert if no days have periods -->
+            <div id="dup-no-source-warning" class="hidden p-3.5 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 text-xs text-amber-700 dark:text-amber-300 flex items-start gap-2.5">
+                <i data-lucide="alert-triangle" class="w-4 h-4 flex-shrink-0 mt-0.5"></i>
+                <div>
+                    <span class="font-bold">No periods scheduled yet.</span>
+                    <p class="mt-0.5 text-amber-600 dark:text-amber-400">Please add periods to at least one day before you can duplicate.</p>
+                </div>
+            </div>
+
+            <div id="dup-form-container" class="space-y-4">
+                <!-- Source Day -->
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5 flex items-center justify-between">
+                        <span>Copy FROM (Source Day)</span>
+                        <span id="dup-source-count-badge" class="text-[11px] font-semibold text-indigo-600 dark:text-indigo-400"></span>
+                    </label>
+                    <select id="dup-source-day-select" class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm font-semibold text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500" onchange="window.appOnDuplicateSourceChanged()"></select>
+                </div>
+
+                <!-- Source Preview snippet -->
+                <div id="dup-source-preview" class="p-3 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200/80 dark:border-slate-800 text-xs text-slate-600 dark:text-slate-400 space-y-1">
+                    <!-- Populated dynamically -->
+                </div>
+
+                <!-- Target Days -->
+                <div>
+                    <div class="flex items-center justify-between mb-1.5">
+                        <label class="block text-xs font-bold text-slate-700 dark:text-slate-300">
+                            Copy TO (Target Day / Days)
+                        </label>
+                        <div class="flex items-center gap-2 text-[11px]">
+                            <button type="button" class="text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 font-semibold" onclick="window.appDupSelectEmptyTargets()">Select Empty</button>
+                            <span class="text-slate-300 dark:text-slate-700">•</span>
+                            <button type="button" class="text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 font-semibold" onclick="window.appDupSelectAllTargets()">Select All</button>
+                            <span class="text-slate-300 dark:text-slate-700">•</span>
+                            <button type="button" class="text-slate-500 hover:text-slate-700 dark:text-slate-400 font-semibold" onclick="window.appDupClearTargets()">Clear</button>
+                        </div>
+                    </div>
+                    <div id="dup-target-checkboxes" class="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                        <!-- Populated dynamically -->
+                    </div>
+                </div>
+
+                <!-- Replace or Append option -->
+                <div class="pt-1">
+                    <label class="flex items-center gap-2 cursor-pointer text-xs font-medium text-slate-700 dark:text-slate-300 select-none">
+                        <input type="checkbox" id="dup-replace-target" checked class="w-4 h-4 text-indigo-600 rounded border-slate-300 dark:border-slate-700 focus:ring-indigo-500">
+                        <span>Replace existing periods on target day(s)</span>
+                    </label>
+                    <p class="text-[11px] text-slate-400 dark:text-slate-500 ml-6 mt-0.5">If unchecked, periods will be appended after existing ones.</p>
+                </div>
+            </div>
+
+            <div class="flex items-center justify-end gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">
+                <button type="button" data-modal-close class="px-4 py-2.5 rounded-xl text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition">Cancel</button>
+                <button type="button" id="dup-submit-btn" class="px-5 py-2.5 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm transition flex items-center gap-2" onclick="window.appExecuteDuplicateDay()">
+                    <i data-lucide="copy" class="w-4 h-4"></i> Duplicate Now
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal 5: Excel Export Modal -->
+    <div id="modal-export-excel" class="modal-overlay fixed inset-0 z-50 flex items-center justify-center p-4 hidden">
+        <div class="modal-content bg-white dark:bg-slate-900 rounded-3xl p-6 sm:p-8 max-w-md w-full border border-slate-200 dark:border-slate-800 shadow-2xl space-y-5">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                    <div class="w-8 h-8 rounded-xl bg-emerald-100 dark:bg-emerald-950 flex items-center justify-center text-emerald-600">
+                        <i data-lucide="file-spreadsheet" class="w-5 h-5"></i>
+                    </div>
+                    <h3 class="text-lg font-bold text-slate-900 dark:text-white">Export to Excel</h3>
+                </div>
+                <button type="button" data-modal-close class="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <div class="space-y-3">
+                <label class="block text-xs font-bold text-slate-700 dark:text-slate-300">Choose Export Scope</label>
+                
+                <label class="flex items-center gap-3 p-3 rounded-2xl border border-slate-200 dark:border-slate-800 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/50 transition">
+                    <input type="radio" name="export-scope" value="all" checked class="accent-indigo-600" onchange="window.appUpdateExportScopeUI()">
+                    <div>
+                        <div class="text-xs font-bold text-slate-800 dark:text-slate-200">Complete Attendance History</div>
+                        <div class="text-[11px] text-slate-400">All subjects, dates, and full summary breakdown</div>
+                    </div>
+                </label>
+
+                <label class="flex items-center gap-3 p-3 rounded-2xl border border-slate-200 dark:border-slate-800 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/50 transition">
+                    <input type="radio" name="export-scope" value="range" class="accent-indigo-600" onchange="window.appUpdateExportScopeUI()">
+                    <div>
+                        <div class="text-xs font-bold text-slate-800 dark:text-slate-200">Selected Date Range</div>
+                        <div class="text-[11px] text-slate-400">Attendance records strictly between specified dates</div>
+                    </div>
+                </label>
+
+                <label class="flex items-center gap-3 p-3 rounded-2xl border border-slate-200 dark:border-slate-800 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/50 transition">
+                    <input type="radio" name="export-scope" value="subject" class="accent-indigo-600" onchange="window.appUpdateExportScopeUI()">
+                    <div>
+                        <div class="text-xs font-bold text-slate-800 dark:text-slate-200">Individual Subject</div>
+                        <div class="text-[11px] text-slate-400">Attendance history exclusively for one selected subject</div>
+                    </div>
+                </label>
+            </div>
+
+            <!-- Conditional Range inputs -->
+            <div id="export-range-fields" class="grid grid-cols-2 gap-3 hidden">
+                <div>
+                    <label class="block text-[11px] font-semibold text-slate-500 mb-1">From Date</label>
+                    <input type="date" id="export-from-date" class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-1.5 text-xs">
+                </div>
+                <div>
+                    <label class="block text-[11px] font-semibold text-slate-500 mb-1">To Date</label>
+                    <input type="date" id="export-to-date" class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-1.5 text-xs">
+                </div>
+            </div>
+
+            <!-- Conditional Subject select -->
+            <div id="export-subject-fields" class="hidden">
+                <label class="block text-[11px] font-semibold text-slate-500 mb-1">Select Subject</label>
+                <select id="export-sub-select" class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs font-semibold"></select>
+            </div>
+
+            <div class="flex items-center justify-end gap-3 pt-3">
+                <button type="button" data-modal-close class="px-4 py-2 rounded-xl text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">Cancel</button>
+                <button type="button" class="px-5 py-2.5 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white transition flex items-center gap-2 shadow-sm" onclick="window.appExecuteExportExcel()">
+                    <i data-lucide="download" class="w-4 h-4"></i> Download .xlsx
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal 6: Data Migration Modal -->
+    <div id="modal-data-migration" class="modal-overlay fixed inset-0 z-50 flex items-center justify-center p-4 hidden">
+        <div class="modal-content bg-white dark:bg-slate-900 rounded-3xl p-6 sm:p-8 max-w-md w-full border border-slate-200 dark:border-slate-800 shadow-2xl space-y-5 text-center">
+            <div class="w-14 h-14 rounded-2xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center mx-auto">
+                <i data-lucide="cloud-upload" class="w-7 h-7"></i>
+            </div>
+            <div>
+                <h3 class="text-lg font-bold text-slate-900 dark:text-white">Existing Attendance Data Found</h3>
+                <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">We detected previous subjects/timetable data on this device. Would you like to import it to your new cloud account or start fresh?</p>
+            </div>
+            <div class="space-y-2 pt-2">
+                <button class="w-full py-3 px-4 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white transition flex items-center justify-center gap-2 shadow-sm" onclick="window.appConfirmMigration(true)">
+                    <i data-lucide="check" class="w-4 h-4"></i> Import to My Cloud Account
+                </button>
+                <button class="w-full py-2.5 px-4 rounded-xl text-xs font-semibold bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 transition" onclick="window.appConfirmMigration(false)">
+                    Start Fresh (Discard Local)
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Application Controller Script -->
+    <script type="module" src="/static/js/app.js"></script>
+
+    <script>
+        // Initialize Lucide icons on initial HTML load
+        window.addEventListener('DOMContentLoaded', () => {
+            if (window.lucide) {
+                window.lucide.createIcons();
+            }
+        });
+    </script>
+</body>
+</html>
