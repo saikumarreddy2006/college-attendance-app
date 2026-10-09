@@ -162,8 +162,21 @@ def init_db(target_path=None):
             )
         ''')
 
+        # 9. Holidays table (per-user)
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS holidays (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                date TEXT NOT NULL,
+                name TEXT,
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+                UNIQUE(user_id, date)
+            )
+        ''')
+
         # Run safe migrations for existing tables if user_id column doesn't exist
-        for table in ['subjects', 'timetable', 'attendance', 'settings', 'period_slots']:
+        for table in ['subjects', 'timetable', 'attendance', 'settings', 'period_slots', 'holidays']:
             try:
                 cursor.execute(f"PRAGMA table_info({table})")
                 cols = [col[1] for col in cursor.fetchall()]
@@ -213,6 +226,7 @@ def init_db(target_path=None):
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_timetable_user ON timetable(user_id, day)')
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_attendance_user_date ON attendance(user_id, date)')
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_attendance_user_subject ON attendance(user_id, subject_id)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_holidays_user_date ON holidays(user_id, date)')
 
         conn.commit()
 
@@ -693,10 +707,11 @@ def handle_subjects():
         att_row = db.execute('''
             SELECT 
                 COUNT(*) as total,
-                SUM(CASE WHEN status = 'Present' THEN 1 ELSE 0 END) as attended
-            FROM attendance
-            WHERE subject_id = ? AND user_id = ?
-        ''', (s['id'], user_id)).fetchone()
+                SUM(CASE WHEN a.status = 'Present' THEN 1 ELSE 0 END) as attended
+            FROM attendance a
+            WHERE a.subject_id = ? AND a.user_id = ?
+              AND a.date NOT IN (SELECT date FROM holidays WHERE user_id = ?)
+        ''', (s['id'], user_id, user_id)).fetchone()
         
         total = att_row['total'] or 0
         attended = att_row['attended'] or 0
@@ -757,10 +772,11 @@ def handle_single_subject(sub_id):
     att_row = db.execute('''
         SELECT 
             COUNT(*) as total,
-            SUM(CASE WHEN status = 'Present' THEN 1 ELSE 0 END) as attended
-        FROM attendance
-        WHERE subject_id = ? AND user_id = ?
-    ''', (sub_id, user_id)).fetchone()
+            SUM(CASE WHEN a.status = 'Present' THEN 1 ELSE 0 END) as attended
+        FROM attendance a
+        WHERE a.subject_id = ? AND a.user_id = ?
+          AND a.date NOT IN (SELECT date FROM holidays WHERE user_id = ?)
+    ''', (sub_id, user_id, user_id)).fetchone()
 
     total = att_row['total'] or 0
     attended = att_row['attended'] or 0
@@ -780,14 +796,15 @@ def handle_single_subject(sub_id):
 
     monthly_rows = db.execute('''
         SELECT 
-            strftime('%Y-%m', date) as month,
+            strftime('%Y-%m', a.date) as month,
             COUNT(*) as total,
-            SUM(CASE WHEN status = 'Present' THEN 1 ELSE 0 END) as attended
-        FROM attendance
-        WHERE subject_id = ? AND user_id = ?
+            SUM(CASE WHEN a.status = 'Present' THEN 1 ELSE 0 END) as attended
+        FROM attendance a
+        WHERE a.subject_id = ? AND a.user_id = ?
+          AND a.date NOT IN (SELECT date FROM holidays WHERE user_id = ?)
         GROUP BY month
         ORDER BY month ASC
-    ''', (sub_id, user_id)).fetchall()
+    ''', (sub_id, user_id, user_id)).fetchall()
     
     s_dict['monthly'] = [
         {
@@ -800,9 +817,12 @@ def handle_single_subject(sub_id):
     ]
 
     recent_rows = db.execute('''
-        SELECT a.id, a.date, a.status, a.notes, t.period_number, t.start_time, t.end_time
+        SELECT a.id, a.date, a.status, a.notes, t.period_number, t.start_time, t.end_time,
+               (CASE WHEN h.id IS NOT NULL THEN 1 ELSE 0 END) as is_holiday,
+               h.name as holiday_name
         FROM attendance a
         LEFT JOIN timetable t ON a.period_id = t.id
+        LEFT JOIN holidays h ON a.user_id = h.user_id AND a.date = h.date
         WHERE a.subject_id = ? AND a.user_id = ?
         ORDER BY a.date DESC, t.period_number DESC
         LIMIT 50
@@ -1171,6 +1191,11 @@ def handle_attendance():
         if not sub:
             return jsonify({'error': 'Unauthorized subject'}), 403
 
+        # Reject attendance marking if date is a designated holiday
+        is_holiday = db.execute("SELECT 1 FROM holidays WHERE user_id = ? AND date = ?", (user_id, att_date)).fetchone()
+        if is_holiday:
+            return jsonify({'error': 'Cannot record attendance: This date is designated as a Holiday.'}), 400
+
         if period_id:
             existing = db.execute('''
                 SELECT id FROM attendance WHERE user_id = ? AND date = ? AND period_id = ?
@@ -1199,14 +1224,55 @@ def handle_attendance():
     sort_by = request.args.get('sort', 'date')
     order = request.args.get('order', 'DESC').upper()
 
+    # Special handling for "Holiday" status filter
+    if status_filter == 'Holiday':
+        hol_query = "SELECT * FROM holidays WHERE user_id = ?"
+        hol_params = [user_id]
+        if date_filter:
+            hol_query += " AND date = ?"
+            hol_params.append(date_filter)
+        if from_date:
+            hol_query += " AND date >= ?"
+            hol_params.append(from_date)
+        if to_date:
+            hol_query += " AND date <= ?"
+            hol_params.append(to_date)
+        hol_query += f" ORDER BY date {order}"
+        h_rows = db.execute(hol_query, hol_params).fetchall()
+        results = []
+        for h in h_rows:
+            try:
+                day_name = datetime.strptime(h['date'], '%Y-%m-%d').strftime('%A')
+            except Exception:
+                day_name = ''
+            results.append({
+                'id': f"hol_{h['id']}",
+                'holiday_id': h['id'],
+                'date': h['date'],
+                'status': 'Holiday',
+                'is_holiday': True,
+                'subject_name': h['name'] or 'College Holiday',
+                'subject_code': 'HOLIDAY',
+                'subject_color': '#8B5CF6',
+                'period_day': day_name,
+                'period_number': '-',
+                'start_time': 'All',
+                'end_time': 'Day',
+                'notes': h['name'] or 'Official Holiday'
+            })
+        return jsonify(results)
+
     query = '''
         SELECT a.*, s.name as subject_name, s.code as subject_code, s.color as subject_color,
                t.day as period_day, t.period_number, t.start_time, t.end_time,
                COALESCE(t.faculty, s.faculty) as effective_faculty,
-               COALESCE(t.room, s.room) as effective_room
+               COALESCE(t.room, s.room) as effective_room,
+               (CASE WHEN h.id IS NOT NULL THEN 1 ELSE 0 END) as is_holiday,
+               h.name as holiday_name
         FROM attendance a
         JOIN subjects s ON a.subject_id = s.id
         LEFT JOIN timetable t ON a.period_id = t.id
+        LEFT JOIN holidays h ON a.user_id = h.user_id AND a.date = h.date
         WHERE a.user_id = ?
     '''
     params = [user_id]
@@ -1224,14 +1290,54 @@ def handle_attendance():
         query += ' AND a.subject_id = ?'
         params.append(subject_filter)
     if status_filter and status_filter in ('Present', 'Absent'):
-        query += ' AND a.status = ?'
+        query += ' AND a.status = ? AND a.date NOT IN (SELECT date FROM holidays WHERE user_id = ?)'
         params.append(status_filter)
+        params.append(user_id)
 
     order_col = 'a.date' if sort_by == 'date' else 't.period_number'
     query += f' ORDER BY {order_col} {order}, t.period_number ASC'
 
     rows = db.execute(query, params).fetchall()
-    return jsonify([dict(r) for r in rows])
+    result = [dict(r) for r in rows]
+
+    # If no subject filter and viewing all statuses, merge holidays
+    if not subject_filter and not status_filter:
+        hol_query = "SELECT * FROM holidays WHERE user_id = ?"
+        hol_params = [user_id]
+        if date_filter:
+            hol_query += " AND date = ?"
+            hol_params.append(date_filter)
+        if from_date:
+            hol_query += " AND date >= ?"
+            hol_params.append(from_date)
+        if to_date:
+            hol_query += " AND date <= ?"
+            hol_params.append(to_date)
+        h_rows = db.execute(hol_query, hol_params).fetchall()
+        for h in h_rows:
+            try:
+                day_name = datetime.strptime(h['date'], '%Y-%m-%d').strftime('%A')
+            except Exception:
+                day_name = ''
+            result.append({
+                'id': f"hol_{h['id']}",
+                'holiday_id': h['id'],
+                'date': h['date'],
+                'status': 'Holiday',
+                'is_holiday': True,
+                'subject_name': h['name'] or 'College Holiday',
+                'subject_code': 'HOLIDAY',
+                'subject_color': '#8B5CF6',
+                'period_day': day_name,
+                'period_number': '-',
+                'start_time': 'All',
+                'end_time': 'Day',
+                'notes': h['name'] or 'Official Holiday'
+            })
+        reverse = (order == 'DESC')
+        result.sort(key=lambda x: x.get('date', ''), reverse=reverse)
+
+    return jsonify(result)
 
 @app.route('/api/attendance/<int:att_id>', methods=['PUT', 'DELETE'])
 @require_auth
@@ -1276,6 +1382,89 @@ def unmark_attendance():
     db.commit()
     return jsonify({'success': True})
 
+@app.route('/api/holidays', methods=['GET', 'POST', 'DELETE'])
+@require_auth
+def handle_holidays():
+    db = get_db()
+    user_id = g.user_id
+
+    if request.method == 'POST':
+        data = request.json or {}
+        h_date = data.get('date', '').strip()
+        h_name = data.get('name', '').strip()
+
+        if not h_date or not re.match(r'^\d{4}-\d{2}-\d{2}$', h_date):
+            return jsonify({'error': 'Valid date in YYYY-MM-DD format is required'}), 400
+
+        try:
+            datetime.strptime(h_date, '%Y-%m-%d')
+        except ValueError:
+            return jsonify({'error': 'Invalid calendar date'}), 400
+
+        cursor = db.execute('''
+            INSERT INTO holidays (user_id, date, name)
+            VALUES (?, ?, ?)
+            ON CONFLICT(user_id, date) DO UPDATE SET name = excluded.name, created_at = CURRENT_TIMESTAMP
+        ''', (user_id, h_date, h_name or 'College Holiday'))
+        db.commit()
+
+        row = db.execute("SELECT * FROM holidays WHERE user_id = ? AND date = ?", (user_id, h_date)).fetchone()
+        return jsonify({'success': True, 'holiday': dict(row)}), 201
+
+    if request.method == 'DELETE':
+        data = request.json or {}
+        h_date = (data.get('date') or request.args.get('date', '')).strip()
+        h_id = data.get('id') or request.args.get('id')
+
+        if h_date:
+            db.execute("DELETE FROM holidays WHERE user_id = ? AND date = ?", (user_id, h_date))
+        elif h_id:
+            db.execute("DELETE FROM holidays WHERE user_id = ? AND id = ?", (user_id, h_id))
+        else:
+            return jsonify({'error': 'Holiday date or id is required'}), 400
+
+        db.commit()
+        return jsonify({'success': True, 'date': h_date})
+
+    # GET
+    month = request.args.get('month')
+    h_date = request.args.get('date')
+    from_date = request.args.get('from_date')
+    to_date = request.args.get('to_date')
+
+    query = "SELECT * FROM holidays WHERE user_id = ?"
+    params = [user_id]
+    if month:
+        query += " AND strftime('%Y-%m', date) = ?"
+        params.append(month)
+    if h_date:
+        query += " AND date = ?"
+        params.append(h_date)
+    if from_date:
+        query += " AND date >= ?"
+        params.append(from_date)
+    if to_date:
+        query += " AND date <= ?"
+        params.append(to_date)
+    query += " ORDER BY date ASC"
+
+    rows = db.execute(query, params).fetchall()
+    return jsonify([dict(r) for r in rows])
+
+
+@app.route('/api/holidays/unmark', methods=['POST'])
+@require_auth
+def unmark_holiday():
+    db = get_db()
+    user_id = g.user_id
+    data = request.json or {}
+    h_date = (data.get('date') or request.args.get('date', '')).strip()
+    if not h_date:
+        return jsonify({'error': 'Holiday date is required'}), 400
+    db.execute("DELETE FROM holidays WHERE user_id = ? AND date = ?", (user_id, h_date))
+    db.commit()
+    return jsonify({'success': True, 'date': h_date})
+
 @app.route('/api/attendance/today', methods=['GET'])
 @require_auth
 def get_today_attendance():
@@ -1289,6 +1478,25 @@ def get_today_attendance():
         query_date = dt.strftime('%Y-%m-%d')
 
     day_name = dt.strftime('%A')
+
+    # Check if query_date is designated as a holiday
+    holiday_row = db.execute("SELECT * FROM holidays WHERE user_id = ? AND date = ?", (user_id, query_date)).fetchone()
+    if holiday_row:
+        return jsonify({
+            'date': query_date,
+            'day': day_name,
+            'is_holiday': True,
+            'holiday_name': holiday_row['name'] or 'College Holiday',
+            'periods': [],
+            'summary': {
+                'total': 0,
+                'present': 0,
+                'absent': 0,
+                'unmarked': 0,
+                'marked': 0,
+                'percentage': 0.0
+            }
+        })
 
     timetable_rows = db.execute('''
         SELECT t.*, s.name as subject_name, s.code as subject_code, s.color as subject_color,
@@ -1330,6 +1538,8 @@ def get_today_attendance():
     return jsonify({
         'date': query_date,
         'day': day_name,
+        'is_holiday': False,
+        'holiday_name': None,
         'periods': periods,
         'summary': {
             'total': total_periods,
@@ -1350,8 +1560,8 @@ def get_attendance_summary():
     from_date = request.args.get('from_date')
     to_date = request.args.get('to_date')
 
-    where_clauses = ['a.user_id = ?']
-    params = [user_id]
+    where_clauses = ['a.user_id = ?', 'a.date NOT IN (SELECT date FROM holidays WHERE user_id = ?)']
+    params = [user_id, user_id]
     if from_date:
         where_clauses.append('a.date >= ?')
         params.append(from_date)
@@ -1381,6 +1591,18 @@ def get_attendance_summary():
     else:
         overall_status = 'Critical'
     overall_stats['status_badge'] = overall_status
+
+    # Count holidays in selected range
+    hol_clauses = ['user_id = ?']
+    hol_params = [user_id]
+    if from_date:
+        hol_clauses.append('date >= ?')
+        hol_params.append(from_date)
+    if to_date:
+        hol_clauses.append('date <= ?')
+        hol_params.append(to_date)
+    hol_sql = ' AND '.join(hol_clauses)
+    total_holidays = db.execute(f"SELECT COUNT(*) FROM holidays WHERE {hol_sql}", hol_params).fetchone()[0]
 
     subjects = db.execute("SELECT * FROM subjects WHERE user_id = ? ORDER BY name ASC", (user_id,)).fetchall()
     subject_summaries = []
@@ -1427,6 +1649,7 @@ def get_attendance_summary():
         'overall': overall_stats,
         'subjects': subject_summaries,
         'settings': settings,
+        'total_holidays': total_holidays,
         'filter': {
             'from_date': from_date,
             'to_date': to_date
@@ -1446,9 +1669,18 @@ def get_monthly_attendance():
             SUM(CASE WHEN status = 'Absent' THEN 1 ELSE 0 END) as absent
         FROM attendance
         WHERE user_id = ?
+          AND date NOT IN (SELECT date FROM holidays WHERE user_id = ?)
         GROUP BY month
         ORDER BY month ASC
+    ''', (user_id, user_id)).fetchall()
+
+    holiday_counts = db.execute('''
+        SELECT strftime('%Y-%m', date) as month, COUNT(*) as holiday_count
+        FROM holidays
+        WHERE user_id = ?
+        GROUP BY month
     ''', (user_id,)).fetchall()
+    hol_map = {h['month']: h['holiday_count'] for h in holiday_counts}
 
     result = []
     for r in rows:
@@ -1467,7 +1699,8 @@ def get_monthly_attendance():
             'total': total,
             'attended': att,
             'absent': r['absent'],
-            'percentage': pct
+            'percentage': pct,
+            'holidays': hol_map.get(r['month'], 0)
         })
     return jsonify(result)
 
@@ -1488,7 +1721,14 @@ def get_calendar_attendance():
             SUM(CASE WHEN status = 'Absent' THEN 1 ELSE 0 END) as absent
         FROM attendance
         WHERE user_id = ? AND strftime('%Y-%m', date) = ?
+          AND date NOT IN (SELECT date FROM holidays WHERE user_id = ?)
         GROUP BY date
+        ORDER BY date ASC
+    ''', (user_id, month_str, user_id)).fetchall()
+
+    holiday_rows = db.execute('''
+        SELECT date, name FROM holidays
+        WHERE user_id = ? AND strftime('%Y-%m', date) = ?
         ORDER BY date ASC
     ''', (user_id, month_str)).fetchall()
 
@@ -1511,8 +1751,22 @@ def get_calendar_attendance():
             'attended': att,
             'absent': absent,
             'percentage': round((att / total) * 100, 1) if total > 0 else 0,
-            'status': status
+            'status': status,
+            'is_holiday': False
         }
+
+    # Add holidays to calendar data
+    for h in holiday_rows:
+        calendar_data[h['date']] = {
+            'total': 0,
+            'attended': 0,
+            'absent': 0,
+            'percentage': 0.0,
+            'status': 'holiday',
+            'is_holiday': True,
+            'holiday_name': h['name'] or 'College Holiday'
+        }
+
     return jsonify(calendar_data)
 
 # --- Excel Export ---
@@ -1528,8 +1782,8 @@ def export_excel():
     to_date = request.args.get('to_date', '').strip()
     subject_id = request.args.get('subject_id', '').strip()
 
-    where_clauses = ['a.user_id = ?']
-    params = [user_id]
+    where_clauses = ['a.user_id = ?', 'a.date NOT IN (SELECT date FROM holidays WHERE user_id = ?)']
+    params = [user_id, user_id]
     scope_title = "Complete Attendance"
     sub_row = None
 
@@ -1746,13 +2000,58 @@ def export_excel():
                 c.font = green_font if r['status'] == 'Present' else red_font
         d_row += 1
 
-    for ws in [ws_summary, ws_detail]:
+    # ---------------- SHEET 3: Declared Holidays ----------------
+    ws_holidays = wb.create_sheet(title="Holidays")
+    ws_holidays['A1'] = "Declared College Holidays"
+    ws_holidays['A1'].font = title_font
+    ws_holidays['A2'] = f"Student: {settings['student_name']} | Scope: {scope_title}"
+    ws_holidays['A2'].font = subtitle_font
+
+    hol_query = "SELECT * FROM holidays WHERE user_id = ?"
+    hol_params = [user_id]
+    if scope == 'range':
+        if from_date:
+            hol_query += " AND date >= ?"
+            hol_params.append(from_date)
+        if to_date:
+            hol_query += " AND date <= ?"
+            hol_params.append(to_date)
+    hol_query += " ORDER BY date ASC"
+    holidays_data = db.execute(hol_query, hol_params).fetchall()
+
+    h_headers = ["#", "Date", "Day of Week", "Holiday Name / Reason"]
+    for col_idx, h in enumerate(h_headers, start=1):
+        cell = ws_holidays.cell(row=4, column=col_idx, value=h)
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.alignment = Alignment(horizontal="center")
+
+    h_row = 5
+    for idx, h in enumerate(holidays_data, start=1):
+        try:
+            day_name = datetime.strptime(h['date'], '%Y-%m-%d').strftime('%A')
+        except Exception:
+            day_name = '-'
+        vals = [idx, h['date'], day_name, h['name'] or 'College Holiday']
+        for col_idx, val in enumerate(vals, start=1):
+            c = ws_holidays.cell(row=h_row, column=col_idx, value=val)
+            c.font = primary_font
+            c.border = thin_border
+            if col_idx in (1, 2, 3):
+                c.alignment = Alignment(horizontal="center")
+        h_row += 1
+
+    if not holidays_data:
+        c = ws_holidays.cell(row=5, column=1, value="No declared holidays in this period.")
+        c.font = subtitle_font
+
+    for ws in [ws_summary, ws_detail, ws_holidays]:
         for col in ws.columns:
             max_len = 0
             col_letter = get_column_letter(col[0].column)
             for cell in col:
                 val_str = str(cell.value or '')
-                if cell.row in (1, 2) and ws == ws_summary:
+                if cell.row in (1, 2) and ws in (ws_summary, ws_holidays):
                     continue
                 if len(val_str) > max_len:
                     max_len = len(val_str)
@@ -1785,7 +2084,7 @@ def export_analytics():
     user_id = g.user_id
     settings = get_current_settings(user_id)
 
-    # 1. Fetch monthly stats
+    # 1. Fetch monthly stats (excluding holidays)
     monthly_rows = db.execute('''
         SELECT 
             strftime('%Y-%m', date) as month,
@@ -1794,24 +2093,33 @@ def export_analytics():
             SUM(CASE WHEN status = 'Absent' THEN 1 ELSE 0 END) as absent
         FROM attendance
         WHERE user_id = ?
+          AND date NOT IN (SELECT date FROM holidays WHERE user_id = ?)
         GROUP BY month
         ORDER BY month ASC
-    ''', (user_id,)).fetchall()
+    ''', (user_id, user_id)).fetchall()
 
-    # 2. Fetch subject summary stats
+    holiday_counts = db.execute('''
+        SELECT strftime('%Y-%m', date) as month, COUNT(*) as holiday_count
+        FROM holidays
+        WHERE user_id = ?
+        GROUP BY month
+    ''', (user_id,)).fetchall()
+    hol_map = {h['month']: h['holiday_count'] for h in holiday_counts}
+
+    # 2. Fetch subject summary stats (excluding holidays)
     subject_stats = db.execute('''
         SELECT s.id, s.name, s.code, s.faculty, s.room,
                COUNT(a.id) as total,
                SUM(CASE WHEN a.status = 'Present' THEN 1 ELSE 0 END) as attended,
                SUM(CASE WHEN a.status = 'Absent' THEN 1 ELSE 0 END) as absent
         FROM subjects s
-        LEFT JOIN attendance a ON s.id = a.subject_id AND a.user_id = ?
+        LEFT JOIN attendance a ON s.id = a.subject_id AND a.user_id = ? AND a.date NOT IN (SELECT date FROM holidays WHERE user_id = ?)
         WHERE s.user_id = ?
         GROUP BY s.id
         ORDER BY s.name ASC
-    ''', (user_id, user_id)).fetchall()
+    ''', (user_id, user_id, user_id)).fetchall()
 
-    # 3. Fetch monthly subject breakdown matrix
+    # 3. Fetch monthly subject breakdown matrix (excluding holidays)
     matrix_rows = db.execute('''
         SELECT s.id as subject_id, s.code as subject_code, s.name as subject_name,
                strftime('%Y-%m', a.date) as month,
@@ -1819,11 +2127,11 @@ def export_analytics():
                SUM(CASE WHEN a.status = 'Present' THEN 1 ELSE 0 END) as attended,
                SUM(CASE WHEN a.status = 'Absent' THEN 1 ELSE 0 END) as absent
         FROM subjects s
-        LEFT JOIN attendance a ON s.id = a.subject_id AND a.user_id = ?
+        LEFT JOIN attendance a ON s.id = a.subject_id AND a.user_id = ? AND a.date NOT IN (SELECT date FROM holidays WHERE user_id = ?)
         WHERE s.user_id = ?
         GROUP BY s.id, month
         ORDER BY s.code ASC, month ASC
-    ''', (user_id, user_id)).fetchall()
+    ''', (user_id, user_id, user_id)).fetchall()
 
     wb = openpyxl.Workbook()
 
@@ -1888,6 +2196,7 @@ def export_analytics():
         ("Total Classes Conducted", all_tot),
         ("Classes Attended", all_att),
         ("Classes Absent", all_abs),
+        ("Total Declared Holidays", sum(hol_map.values())),
         ("Required Target", f"{settings['required_attendance']}%"),
         ("Tracked Months", len(monthly_rows)),
         ("Best Attendance Month", best_m),
@@ -1901,11 +2210,11 @@ def export_analytics():
         ws_trends[f'B{idx}'].border = thin_border
         ws_trends[f'A{idx}'].fill = accent_fill
 
-    t_start = 15
+    t_start = 16
     ws_trends[f'A{t_start}'] = "MONTH-BY-MONTH ATTENDANCE TRENDS"
     ws_trends[f'A{t_start}'].font = Font(name="Arial", size=13, bold=True, color="1E3A8A")
 
-    trend_headers = ["Month Key", "Month Name", "Conducted", "Attended", "Absent", "Attendance %", "Status", "MoM Change"]
+    trend_headers = ["Month Key", "Month Name", "Conducted", "Attended", "Absent", "Holidays", "Attendance %", "Status", "MoM Change"]
     for col_idx, h in enumerate(trend_headers, start=1):
         c = ws_trends.cell(row=t_start + 1, column=col_idx, value=h)
         c.font = header_font
@@ -1918,6 +2227,7 @@ def export_analytics():
         tot = r['total']
         att = r['attended']
         ab = r['absent']
+        m_hols = hol_map.get(r['month'], 0)
         pct = round((att / tot * 100), 2) if tot > 0 else 0.0
         try:
             m_label = datetime.strptime(r['month'], '%Y-%m').strftime('%B %Y')
@@ -1940,14 +2250,14 @@ def export_analytics():
             mom_str = f"+{diff}%" if diff > 0 else f"{diff}%"
         prev_pct = pct
 
-        vals = [r['month'], m_label, tot, att, ab, f"{pct}%", badge, mom_str]
+        vals = [r['month'], m_label, tot, att, ab, m_hols, f"{pct}%", badge, mom_str]
         for col_idx, val in enumerate(vals, start=1):
             c = ws_trends.cell(row=curr_row, column=col_idx, value=val)
             c.font = primary_font
             c.border = thin_border
-            if col_idx in (1, 3, 4, 5, 6, 7, 8):
+            if col_idx in (1, 3, 4, 5, 6, 7, 8, 9):
                 c.alignment = Alignment(horizontal="center")
-            if col_idx == 7:
+            if col_idx == 8:
                 if badge == "Good": c.font = green_font
                 elif badge == "Warning": c.font = yellow_font
                 else: c.font = red_font
@@ -2120,26 +2430,97 @@ def export_logs():
             where_clauses.append('a.subject_id = ?')
             params.append(subject_id)
             active_filters_desc.append(f"Subject: {sub_row['code']} - {sub_row['name']}")
-    if status_filter in ('Present', 'Absent'):
-        where_clauses.append('a.status = ?')
-        params.append(status_filter)
-        active_filters_desc.append(f"Status: {status_filter}")
+    if status_filter == 'Holiday':
+        active_filters_desc.append("Status: Holiday")
+        hol_query = "SELECT * FROM holidays WHERE user_id = ?"
+        hol_params = [user_id]
+        if from_date:
+            hol_query += " AND date >= ?"
+            hol_params.append(from_date)
+        if to_date:
+            hol_query += " AND date <= ?"
+            hol_params.append(to_date)
+        hol_query += f" ORDER BY date {order}"
+        h_rows = db.execute(hol_query, hol_params).fetchall()
+        records = []
+        for h in h_rows:
+            try:
+                day_name = datetime.strptime(h['date'], '%Y-%m-%d').strftime('%A')
+            except Exception:
+                day_name = '-'
+            records.append({
+                'id': h['id'],
+                'date': h['date'],
+                'status': 'Holiday',
+                'notes': h['name'] or 'College Holiday',
+                'created_at': h['created_at'],
+                'subject_name': h['name'] or 'College Holiday',
+                'subject_code': 'HOLIDAY',
+                'period_day': day_name,
+                'period_number': '-',
+                'start_time': '-',
+                'end_time': '-',
+                'effective_faculty': '-',
+                'effective_room': '-'
+            })
+    else:
+        if status_filter in ('Present', 'Absent'):
+            where_clauses.append('a.status = ?')
+            where_clauses.append('a.date NOT IN (SELECT date FROM holidays WHERE user_id = ?)')
+            params.append(status_filter)
+            params.append(user_id)
+            active_filters_desc.append(f"Status: {status_filter}")
 
-    where_sql = ' AND '.join(where_clauses)
-    order_col = 'a.date' if sort_by == 'date' else 't.period_number'
+        where_sql = ' AND '.join(where_clauses)
+        order_col = 'a.date' if sort_by == 'date' else 't.period_number'
 
-    records = db.execute(f'''
-        SELECT a.id, a.date, a.status, a.notes, a.created_at,
-               s.name as subject_name, s.code as subject_code,
-               t.day as period_day, t.period_number, t.start_time, t.end_time,
-               COALESCE(t.faculty, s.faculty) as effective_faculty,
-               COALESCE(t.room, s.room) as effective_room
-        FROM attendance a
-        JOIN subjects s ON a.subject_id = s.id
-        LEFT JOIN timetable t ON a.period_id = t.id
-        WHERE {where_sql}
-        ORDER BY {order_col} {order}, t.period_number ASC
-    ''', params).fetchall()
+        db_records = db.execute(f'''
+            SELECT a.id, a.date, a.status, a.notes, a.created_at,
+                   s.name as subject_name, s.code as subject_code,
+                   t.day as period_day, t.period_number, t.start_time, t.end_time,
+                   COALESCE(t.faculty, s.faculty) as effective_faculty,
+                   COALESCE(t.room, s.room) as effective_room
+            FROM attendance a
+            JOIN subjects s ON a.subject_id = s.id
+            LEFT JOIN timetable t ON a.period_id = t.id
+            WHERE {where_sql}
+            ORDER BY {order_col} {order}, t.period_number ASC
+        ''', params).fetchall()
+        records = [dict(r) for r in db_records]
+
+        # If not filtering by specific subject or status, merge holidays
+        if not subject_id and not status_filter:
+            hol_query = "SELECT * FROM holidays WHERE user_id = ?"
+            hol_params = [user_id]
+            if from_date:
+                hol_query += " AND date >= ?"
+                hol_params.append(from_date)
+            if to_date:
+                hol_query += " AND date <= ?"
+                hol_params.append(to_date)
+            h_rows = db.execute(hol_query, hol_params).fetchall()
+            for h in h_rows:
+                try:
+                    day_name = datetime.strptime(h['date'], '%Y-%m-%d').strftime('%A')
+                except Exception:
+                    day_name = '-'
+                records.append({
+                    'id': f"hol_{h['id']}",
+                    'date': h['date'],
+                    'status': 'Holiday',
+                    'notes': h['name'] or 'College Holiday',
+                    'created_at': h['created_at'],
+                    'subject_name': h['name'] or 'College Holiday',
+                    'subject_code': 'HOLIDAY',
+                    'period_day': day_name,
+                    'period_number': '-',
+                    'start_time': '-',
+                    'end_time': '-',
+                    'effective_faculty': '-',
+                    'effective_room': '-'
+                })
+            reverse = (order == 'DESC')
+            records.sort(key=lambda x: str(x.get('date', '')), reverse=reverse)
 
     wb = openpyxl.Workbook()
 
@@ -2150,6 +2531,7 @@ def export_logs():
     bold_font = Font(name="Arial", size=11, bold=True)
     green_font = Font(name="Arial", size=11, bold=True, color="047857")
     red_font = Font(name="Arial", size=11, bold=True, color="B91C1C")
+    purple_font = Font(name="Arial", size=11, bold=True, color="7C3AED")
 
     header_fill = PatternFill(start_color="1E3A8A", end_color="1E3A8A", fill_type="solid")
     accent_fill = PatternFill(start_color="F1F5F9", end_color="F1F5F9", fill_type="solid")
@@ -2187,7 +2569,7 @@ def export_logs():
         try:
             day_name = datetime.strptime(r['date'], '%Y-%m-%d').strftime('%A')
         except Exception:
-            day_name = r['period_day'] or '-'
+            day_name = r.get('period_day') or '-'
 
         vals = [
             idx,
@@ -2211,7 +2593,12 @@ def export_logs():
             if col_idx in (1, 2, 3, 4, 5, 6, 11):
                 c.alignment = Alignment(horizontal="center")
             if col_idx == 11:
-                c.font = green_font if r['status'] == 'Present' else red_font
+                if r['status'] == 'Present':
+                    c.font = green_font
+                elif r['status'] == 'Holiday':
+                    c.font = purple_font
+                else:
+                    c.font = red_font
         r_row += 1
 
     # ---------------- SHEET 2: Filter Summary & Stats ----------------
@@ -2223,8 +2610,10 @@ def export_logs():
 
     tot_log = len(records)
     att_log = sum(1 for r in records if r['status'] == 'Present')
-    abs_log = tot_log - att_log
-    pct_log = round((att_log / tot_log * 100), 2) if tot_log > 0 else 0.0
+    abs_log = sum(1 for r in records if r['status'] == 'Absent')
+    hol_log = sum(1 for r in records if r['status'] == 'Holiday')
+    reg_log = att_log + abs_log
+    pct_log = round((att_log / reg_log * 100), 2) if reg_log > 0 else 0.0
 
     ws_summary['A4'] = "Summary Metric"
     ws_summary['B4'] = "Value"
@@ -2237,6 +2626,7 @@ def export_logs():
         ("Total Filtered Log Entries", tot_log),
         ("Present Count", att_log),
         ("Absent Count", abs_log),
+        ("Holiday Entries", hol_log),
         ("Log Attendance Rate", f"{pct_log}%"),
         ("Date Sort Direction", f"{sort_by.capitalize()} ({order})")
     ]
@@ -2250,6 +2640,8 @@ def export_logs():
 
     sub_map = {}
     for r in records:
+        if r['status'] == 'Holiday':
+            continue
         sc = r['subject_code']
         sn = r['subject_name']
         if sc not in sub_map:
@@ -2257,7 +2649,7 @@ def export_logs():
         sub_map[sc]['total'] += 1
         if r['status'] == 'Present':
             sub_map[sc]['present'] += 1
-        else:
+        elif r['status'] == 'Absent':
             sub_map[sc]['absent'] += 1
 
     s_start = 12
@@ -2323,6 +2715,7 @@ def backup_export():
     timetable = [dict(r) for r in db.execute("SELECT * FROM timetable WHERE user_id = ?", (user_id,)).fetchall()]
     attendance = [dict(r) for r in db.execute("SELECT * FROM attendance WHERE user_id = ?", (user_id,)).fetchall()]
     period_slots = [dict(r) for r in db.execute("SELECT * FROM period_slots WHERE user_id = ?", (user_id,)).fetchall()]
+    holidays = [dict(r) for r in db.execute("SELECT * FROM holidays WHERE user_id = ?", (user_id,)).fetchall()]
 
     backup_data = {
         'version': '2.0',
@@ -2335,7 +2728,8 @@ def backup_export():
         'subjects': subjects,
         'timetable': timetable,
         'attendance': attendance,
-        'period_slots': period_slots
+        'period_slots': period_slots,
+        'holidays': holidays
     }
     return jsonify(backup_data)
 
@@ -2353,6 +2747,7 @@ def backup_import():
         db.execute("DELETE FROM timetable WHERE user_id = ?", (user_id,))
         db.execute("DELETE FROM subjects WHERE user_id = ?", (user_id,))
         db.execute("DELETE FROM period_slots WHERE user_id = ?", (user_id,))
+        db.execute("DELETE FROM holidays WHERE user_id = ?", (user_id,))
 
         s = data.get('settings', {})
         if s:
@@ -2430,6 +2825,16 @@ def backup_import():
                 a.get('updated_at', datetime.now().isoformat())
             ))
 
+        holidays = data.get('holidays', [])
+        for h in holidays:
+            db.execute('''
+                INSERT INTO holidays (user_id, date, name, created_at)
+                VALUES (?, ?, ?, ?)
+            ''', (
+                user_id, h.get('date'), h.get('name', 'College Holiday'),
+                h.get('created_at', datetime.now().isoformat())
+            ))
+
         db.commit()
         return jsonify({
             'success': True,
@@ -2437,7 +2842,8 @@ def backup_import():
                 'subjects': len(subjects),
                 'timetable': len(timetable),
                 'attendance': len(attendance),
-                'period_slots': len(period_slots)
+                'period_slots': len(period_slots),
+                'holidays': len(holidays)
             }
         })
     except Exception as e:
@@ -2462,6 +2868,7 @@ def reset_all():
     db.execute("DELETE FROM timetable WHERE user_id = ?", (user_id,))
     db.execute("DELETE FROM subjects WHERE user_id = ?", (user_id,))
     db.execute("DELETE FROM period_slots WHERE user_id = ?", (user_id,))
+    db.execute("DELETE FROM holidays WHERE user_id = ?", (user_id,))
     db.execute('''
         UPDATE settings
         SET required_attendance = 75.0, warning_threshold = 75.0, critical_threshold = 65.0,
@@ -2481,6 +2888,7 @@ def seed_account_data():
     db.execute("DELETE FROM attendance WHERE user_id = ?", (user_id,))
     db.execute("DELETE FROM timetable WHERE user_id = ?", (user_id,))
     db.execute("DELETE FROM subjects WHERE user_id = ?", (user_id,))
+    db.execute("DELETE FROM holidays WHERE user_id = ?", (user_id,))
     
     # Insert sample subjects
     sample_subjects = [

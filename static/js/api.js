@@ -350,6 +350,35 @@ export const API = {
         });
     },
 
+    // --- Holidays ---
+    getHolidays(filters = {}) {
+        const params = new URLSearchParams();
+        if (filters.month) params.append('month', filters.month);
+        if (filters.date) params.append('date', filters.date);
+        if (filters.from_date) params.append('from_date', filters.from_date);
+        if (filters.to_date) params.append('to_date', filters.to_date);
+        const qs = params.toString();
+        return this.request(`/api/holidays${qs ? '?' + qs : ''}`);
+    },
+    markHoliday(date, name = '') {
+        return this.request('/api/holidays', {
+            method: 'POST',
+            body: JSON.stringify({ date, name })
+        });
+    },
+    unmarkHoliday(date) {
+        return this.request('/api/holidays/unmark', {
+            method: 'POST',
+            body: JSON.stringify({ date })
+        });
+    },
+    deleteHoliday(id) {
+        return this.request('/api/holidays', {
+            method: 'DELETE',
+            body: JSON.stringify({ id })
+        });
+    },
+
     // Today's schedule
     getTodayAttendance(dateStr) {
         const url = dateStr ? `/api/attendance/today?date=${encodeURIComponent(dateStr)}` : '/api/attendance/today';

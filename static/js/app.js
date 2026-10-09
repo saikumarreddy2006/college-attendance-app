@@ -126,23 +126,11 @@ export function switchView(viewName) {
         target.classList.remove('hidden');
     }
 
-    // Toggle navigation UI visibility based on auth
-    const sidebar = document.querySelector('aside');
-    const mobileNav = document.querySelector('nav.md\\:hidden');
-    const userContainer = document.getElementById('user-profile-container');
-    const cloudPill = document.getElementById('cloud-sync-pill');
-
+    // Toggle body class for auth view vs app views
     if (viewName === 'auth') {
-        if (sidebar) sidebar.classList.add('hidden');
-        if (mobileNav) mobileNav.classList.add('hidden');
-        if (userContainer) userContainer.classList.add('hidden');
-        if (cloudPill) cloudPill.classList.add('hidden');
-        return;
+        document.body.classList.add('view-auth');
     } else {
-        if (sidebar) sidebar.classList.remove('hidden');
-        if (mobileNav) mobileNav.classList.remove('hidden');
-        if (userContainer) userContainer.classList.remove('hidden');
-        if (cloudPill) cloudPill.classList.remove('hidden');
+        document.body.classList.remove('view-auth');
     }
 
     // Update navigation active states
@@ -173,6 +161,7 @@ export function switchView(viewName) {
     const drawer = document.getElementById('mobile-drawer');
     if (drawer && !drawer.classList.contains('hidden')) {
         drawer.classList.add('hidden');
+        document.body.classList.remove('overflow-hidden');
     }
 
     // Trigger view-specific loads
@@ -363,19 +352,19 @@ function renderDashboardSubjects(subjects) {
         }
 
         return `
-            <div class="card-subtle bg-white dark:bg-slate-900 rounded-2xl p-5 border border-slate-200 dark:border-slate-800 shadow-sm cursor-pointer relative overflow-hidden group" onclick="window.appOpenSubjectDetails(${s.id})">
+            <div class="card-subtle bg-white dark:bg-slate-900 rounded-2xl p-4 sm:p-5 border border-slate-200 dark:border-slate-800 shadow-sm cursor-pointer relative overflow-hidden group" onclick="window.appOpenSubjectDetails(${s.id})">
                 <div class="absolute top-0 left-0 right-0 h-1" style="background-color: ${s.color || '#3B82F6'}"></div>
                 
                 <div class="flex items-start justify-between gap-2 mb-3">
-                    <div>
-                        <div class="flex items-center gap-2">
+                    <div class="min-w-0 flex-1">
+                        <div class="flex items-center gap-1.5 flex-wrap">
                             <span class="text-xs font-semibold px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">${s.code}</span>
                             <span class="text-xs px-2 py-0.5 rounded-md border font-medium ${badgeClasses}">${s.status_badge}</span>
                         </div>
-                        <h4 class="font-bold text-base text-slate-900 dark:text-white mt-1 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition">${s.name}</h4>
+                        <h4 class="font-bold text-sm sm:text-base text-slate-900 dark:text-white mt-1 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition truncate">${s.name}</h4>
                     </div>
-                    <div class="text-right">
-                        <span class="text-2xl font-black text-slate-900 dark:text-white">${s.percentage}%</span>
+                    <div class="text-right flex-shrink-0">
+                        <span class="text-xl sm:text-2xl font-black text-slate-900 dark:text-white">${s.percentage}%</span>
                     </div>
                 </div>
 
@@ -384,24 +373,24 @@ function renderDashboardSubjects(subjects) {
                     <div class="h-full rounded-full transition-all duration-500 ${s.status_badge === 'Good' ? 'bg-emerald-500' : (s.status_badge === 'Warning' ? 'bg-amber-500' : 'bg-rose-500')}" style="width: ${s.percentage}%"></div>
                 </div>
 
-                <div class="grid grid-cols-3 gap-2 text-center text-xs py-2 bg-slate-50 dark:bg-slate-800/50 rounded-xl mb-3 text-slate-600 dark:text-slate-400">
+                <div class="grid grid-cols-3 gap-1 sm:gap-2 text-center text-xs py-2 bg-slate-50 dark:bg-slate-800/50 rounded-xl mb-3 text-slate-600 dark:text-slate-400">
                     <div>
-                        <div class="text-slate-400 dark:text-slate-500">Attended</div>
-                        <div class="font-bold text-slate-900 dark:text-slate-200 text-sm">${s.attended}</div>
+                        <div class="text-[11px] sm:text-xs text-slate-400 dark:text-slate-500">Attended</div>
+                        <div class="font-bold text-slate-900 dark:text-slate-200 text-xs sm:text-sm">${s.attended}</div>
                     </div>
                     <div>
-                        <div class="text-slate-400 dark:text-slate-500">Absent</div>
-                        <div class="font-bold text-slate-900 dark:text-slate-200 text-sm">${s.absent}</div>
+                        <div class="text-[11px] sm:text-xs text-slate-400 dark:text-slate-500">Absent</div>
+                        <div class="font-bold text-slate-900 dark:text-slate-200 text-xs sm:text-sm">${s.absent}</div>
                     </div>
                     <div>
-                        <div class="text-slate-400 dark:text-slate-500">Total</div>
-                        <div class="font-bold text-slate-900 dark:text-slate-200 text-sm">${s.total}</div>
+                        <div class="text-[11px] sm:text-xs text-slate-400 dark:text-slate-500">Total</div>
+                        <div class="font-bold text-slate-900 dark:text-slate-200 text-xs sm:text-sm">${s.total}</div>
                     </div>
                 </div>
 
                 <div class="text-xs text-slate-600 dark:text-slate-300 flex items-center justify-between">
-                    <div>${adviceText}</div>
-                    <span class="text-indigo-600 dark:text-indigo-400 font-medium group-hover:translate-x-0.5 transition-transform">Details &rarr;</span>
+                    <div class="truncate mr-2">${adviceText}</div>
+                    <span class="text-indigo-600 dark:text-indigo-400 font-medium group-hover:translate-x-0.5 transition-transform flex-shrink-0">Details &rarr;</span>
                 </div>
             </div>
         `;
@@ -461,6 +450,45 @@ async function loadTodayAttendance() {
         document.getElementById('today-display-day').textContent = data.day;
         document.getElementById('today-display-date').textContent = formatDateDisplay(data.date);
 
+        // Update Holiday badge & Toggle button
+        const holidayBadge = document.getElementById('today-holiday-badge');
+        const holidayBtnLabel = document.getElementById('today-btn-holiday-label');
+        const holidayBanner = document.getElementById('today-holiday-banner');
+        const batchBar = document.getElementById('today-batch-bar');
+
+        if (data.is_holiday) {
+            if (holidayBadge) {
+                holidayBadge.classList.remove('hidden');
+                holidayBadge.classList.add('inline-flex');
+                holidayBadge.textContent = `🏖️ ${data.holiday_name || 'Holiday'}`;
+            }
+            if (holidayBtnLabel) {
+                holidayBtnLabel.textContent = 'Mark Working Day';
+            }
+            if (holidayBanner) {
+                holidayBanner.classList.remove('hidden');
+                const bannerTitle = document.getElementById('today-holiday-banner-title');
+                if (bannerTitle) bannerTitle.textContent = `${data.holiday_name || 'Holiday'} — No attendance required`;
+            }
+            if (batchBar) {
+                batchBar.classList.add('hidden');
+            }
+        } else {
+            if (holidayBadge) {
+                holidayBadge.classList.add('hidden');
+                holidayBadge.classList.remove('inline-flex');
+            }
+            if (holidayBtnLabel) {
+                holidayBtnLabel.textContent = 'Mark Holiday';
+            }
+            if (holidayBanner) {
+                holidayBanner.classList.add('hidden');
+            }
+            if (batchBar) {
+                batchBar.classList.remove('hidden');
+            }
+        }
+
         // Update summary badges
         const s = data.summary;
         document.getElementById('today-stat-total').textContent = s.total;
@@ -471,6 +499,12 @@ async function loadTodayAttendance() {
 
         const container = document.getElementById('today-periods-list');
         if (!container) return;
+
+        if (data.is_holiday) {
+            container.innerHTML = '';
+            if (window.lucide) window.lucide.createIcons();
+            return;
+        }
 
         if (data.periods.length === 0) {
             container.innerHTML = `
@@ -493,40 +527,40 @@ async function loadTodayAttendance() {
             const isUnmarked = !p.status;
 
             return `
-                <div class="bg-white dark:bg-slate-900 rounded-2xl p-4 sm:p-5 border ${isPresent ? 'border-emerald-300 dark:border-emerald-800/80 bg-emerald-50/20' : (isAbsent ? 'border-rose-300 dark:border-rose-800/80 bg-rose-50/20' : 'border-slate-200 dark:border-slate-800')} shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4 transition-all">
+                <div class="bg-white dark:bg-slate-900 rounded-2xl p-3.5 sm:p-5 border ${isPresent ? 'border-emerald-300 dark:border-emerald-800/80 bg-emerald-50/20' : (isAbsent ? 'border-rose-300 dark:border-rose-800/80 bg-rose-50/20' : 'border-slate-200 dark:border-slate-800')} shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-4 transition-all">
                     
-                    <div class="flex items-start gap-4">
-                        <div class="w-12 h-12 rounded-2xl flex flex-col items-center justify-center font-bold flex-shrink-0 text-white shadow-sm" style="background-color: ${p.subject_color || '#3B82F6'}">
-                            <span class="text-xs uppercase opacity-80">Per</span>
-                            <span class="text-base leading-none">${p.period_number}</span>
+                    <div class="flex items-start gap-3 sm:gap-4 min-w-0 flex-1">
+                        <div class="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl flex flex-col items-center justify-center font-bold flex-shrink-0 text-white shadow-sm" style="background-color: ${p.subject_color || '#3B82F6'}">
+                            <span class="text-[10px] sm:text-xs uppercase opacity-80">Per</span>
+                            <span class="text-sm sm:text-base leading-none">${p.period_number}</span>
                         </div>
-                        <div>
-                            <div class="flex items-center gap-2 flex-wrap">
+                        <div class="min-w-0 flex-1">
+                            <div class="flex items-center gap-1.5 sm:gap-2 flex-wrap">
                                 <span class="text-xs font-semibold px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">${p.subject_code}</span>
                                 <span class="text-xs text-slate-500 dark:text-slate-400 font-medium">🕒 ${p.start_time} - ${p.end_time}</span>
                                 ${p.effective_room ? `<span class="text-xs text-slate-500 dark:text-slate-400">📍 ${p.effective_room}</span>` : ''}
                             </div>
-                            <h4 class="font-bold text-base text-slate-900 dark:text-white mt-1">${p.subject_name}</h4>
+                            <h4 class="font-bold text-sm sm:text-base text-slate-900 dark:text-white mt-1 break-words">${p.subject_name}</h4>
                             ${p.effective_faculty ? `<p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Faculty: ${p.effective_faculty}</p>` : ''}
                         </div>
                     </div>
 
-                    <!-- Attendance Buttons -->
-                    <div class="flex items-center gap-2 self-end md:self-center">
-                        <button class="px-4 py-2 rounded-xl text-sm font-semibold flex items-center gap-1.5 transition ${isPresent ? 'bg-emerald-600 text-white ring-2 ring-emerald-500 ring-offset-2 dark:ring-offset-slate-900 shadow-sm' : 'bg-slate-100 dark:bg-slate-800 hover:bg-emerald-100 dark:hover:bg-emerald-950/50 text-slate-700 dark:text-slate-300 hover:text-emerald-700'}"
+                    <!-- Attendance Buttons: large touch targets on mobile, compact on desktop -->
+                    <div class="w-full md:w-auto flex items-center gap-2 mt-1 md:mt-0 justify-end md:justify-start">
+                        <button class="flex-1 md:flex-initial justify-center px-4 py-2.5 min-h-[44px] rounded-xl text-sm font-semibold flex items-center gap-1.5 transition ${isPresent ? 'bg-emerald-600 text-white ring-2 ring-emerald-500 ring-offset-2 dark:ring-offset-slate-900 shadow-sm' : 'bg-slate-100 dark:bg-slate-800 hover:bg-emerald-100 dark:hover:bg-emerald-950/50 text-slate-700 dark:text-slate-300 hover:text-emerald-700'}"
                                 onclick="window.appMarkTodayPeriod(${p.id}, ${p.subject_id}, 'Present')">
                             <i data-lucide="check" class="w-4 h-4"></i>
                             <span>Present</span>
                         </button>
 
-                        <button class="px-4 py-2 rounded-xl text-sm font-semibold flex items-center gap-1.5 transition ${isAbsent ? 'bg-rose-600 text-white ring-2 ring-rose-500 ring-offset-2 dark:ring-offset-slate-900 shadow-sm' : 'bg-slate-100 dark:bg-slate-800 hover:bg-rose-100 dark:hover:bg-rose-950/50 text-slate-700 dark:text-slate-300 hover:text-rose-700'}"
+                        <button class="flex-1 md:flex-initial justify-center px-4 py-2.5 min-h-[44px] rounded-xl text-sm font-semibold flex items-center gap-1.5 transition ${isAbsent ? 'bg-rose-600 text-white ring-2 ring-rose-500 ring-offset-2 dark:ring-offset-slate-900 shadow-sm' : 'bg-slate-100 dark:bg-slate-800 hover:bg-rose-100 dark:hover:bg-rose-950/50 text-slate-700 dark:text-slate-300 hover:text-rose-700'}"
                                 onclick="window.appMarkTodayPeriod(${p.id}, ${p.subject_id}, 'Absent')">
                             <i data-lucide="x" class="w-4 h-4"></i>
                             <span>Absent</span>
                         </button>
 
                         ${!isUnmarked ? `
-                            <button class="p-2 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition" title="Clear/Unmark"
+                            <button class="p-2.5 min-h-[44px] min-w-[44px] rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition flex items-center justify-center flex-shrink-0" title="Clear/Unmark"
                                     onclick="window.appUnmarkTodayPeriod(${p.id})">
                                 <i data-lucide="rotate-ccw" class="w-4 h-4"></i>
                             </button>
@@ -606,6 +640,93 @@ window.appClearAllToday = async function(status) {
     }
 };
 
+// --- Holiday Management Handlers ---
+window.appToggleHoliday = async function() {
+    const dateInput = document.getElementById('today-date-picker');
+    const activeDate = dateInput ? dateInput.value : state.todayDate;
+    const holidayBadge = document.getElementById('today-holiday-badge');
+    const isCurrentlyHoliday = holidayBadge && !holidayBadge.classList.contains('hidden');
+
+    if (isCurrentlyHoliday) {
+        await window.appUnmarkHoliday(activeDate);
+    } else {
+        window.appOpenMarkHolidayModal(activeDate);
+    }
+};
+
+window.appOpenMarkHolidayModal = function(dateStr) {
+    const dateInput = document.getElementById('today-date-picker');
+    const activeDate = dateStr || (dateInput && dateInput.value ? dateInput.value : state.todayDate);
+    const modalDate = document.getElementById('holiday-modal-date');
+    const modalName = document.getElementById('holiday-modal-name');
+    if (modalDate) modalDate.value = activeDate;
+    if (modalName) modalName.value = '';
+    const modal = document.getElementById('modal-mark-holiday');
+    if (modal) {
+        modal.classList.remove('hidden');
+        document.body.classList.add('overflow-hidden');
+    }
+    if (window.lucide) window.lucide.createIcons();
+};
+
+window.appSubmitMarkHoliday = async function(event) {
+    if (event) event.preventDefault();
+    const modalDate = document.getElementById('holiday-modal-date')?.value;
+    const modalName = document.getElementById('holiday-modal-name')?.value;
+    if (!modalDate) {
+        showToast("Please choose a valid date", "error");
+        return;
+    }
+    try {
+        await API.markHoliday(modalDate, modalName);
+        document.getElementById('modal-mark-holiday')?.classList.add('hidden');
+        document.body.classList.remove('overflow-hidden');
+        showToast(`Marked ${modalDate} as Holiday!`, "success");
+
+        if (state.currentView === 'today') {
+            loadTodayAttendance();
+        } else if (state.currentView === 'calendar') {
+            loadCalendar();
+        } else if (state.currentView === 'records') {
+            loadRecords();
+        }
+    } catch (err) {
+        console.error("Mark holiday failed:", err);
+        showToast(err.message || "Failed to mark holiday", "error");
+    }
+};
+
+window.appUnmarkHoliday = async function(dateStr) {
+    const dateInput = document.getElementById('today-date-picker');
+    const activeDate = dateStr || (dateInput ? dateInput.value : state.todayDate);
+    try {
+        await API.unmarkHoliday(activeDate);
+        showToast(`Restored ${activeDate} as a normal working day`, "info");
+
+        if (state.currentView === 'today') {
+            loadTodayAttendance();
+        } else if (state.currentView === 'calendar') {
+            loadCalendar();
+        } else if (state.currentView === 'records') {
+            loadRecords();
+        }
+    } catch (err) {
+        console.error("Unmark holiday failed:", err);
+        showToast(err.message || "Failed to restore working day", "error");
+    }
+};
+
+window.appUnmarkHolidayFromRecord = async function(dateStr) {
+    try {
+        await API.unmarkHoliday(dateStr);
+        showToast(`Holiday removed for ${dateStr}`, "info");
+        loadRecords();
+    } catch (err) {
+        console.error("Unmark holiday record failed:", err);
+        showToast(err.message || "Failed to unmark holiday", "error");
+    }
+};
+
 // --- Timetable Management ---
 const DAYS_OF_WEEK = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
@@ -623,7 +744,7 @@ async function loadTimetable() {
         const tabsContainer = document.getElementById('timetable-days-tabs');
         if (tabsContainer) {
             tabsContainer.innerHTML = DAYS_OF_WEEK.map(day => `
-                <button class="px-4 py-2 rounded-xl text-sm font-semibold transition ${state.timetableSelectedDay === day ? 'bg-indigo-600 text-white shadow-sm' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'}"
+                <button class="flex-shrink-0 px-4 py-2 rounded-xl text-sm font-semibold transition ${state.timetableSelectedDay === day ? 'bg-indigo-600 text-white shadow-sm' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'}"
                         onclick="window.appSelectTimetableDay('${day}')">
                     ${day}
                 </button>
@@ -674,43 +795,43 @@ async function loadTimetable() {
         }
 
         listContainer.innerHTML = periods.map((p, idx) => `
-            <div class="bg-white dark:bg-slate-900 rounded-2xl p-4 sm:p-5 border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div class="flex items-start gap-4">
+            <div class="bg-white dark:bg-slate-900 rounded-2xl p-4 sm:p-5 border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
+                <div class="flex items-start gap-3 sm:gap-4 min-w-0 flex-1">
                     <div class="w-10 h-10 rounded-xl flex items-center justify-center font-bold text-white flex-shrink-0" style="background-color: ${p.subject_color || '#3B82F6'}">
                         ${p.period_number}
                     </div>
-                    <div>
-                        <div class="flex items-center gap-2">
+                    <div class="min-w-0 flex-1">
+                        <div class="flex items-center gap-1.5 sm:gap-2 flex-wrap">
                             <span class="text-xs font-semibold px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">${p.subject_code}</span>
                             <span class="text-xs font-semibold text-indigo-600 dark:text-indigo-400">🕒 ${p.start_time} - ${p.end_time}</span>
                         </div>
-                        <h4 class="font-bold text-base text-slate-900 dark:text-white mt-1">${p.subject_name}</h4>
-                        <div class="flex items-center gap-4 text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                        <h4 class="font-bold text-sm sm:text-base text-slate-900 dark:text-white mt-1 break-words">${p.subject_name}</h4>
+                        <div class="flex items-center gap-3 text-xs text-slate-500 dark:text-slate-400 mt-0.5 flex-wrap">
                             ${p.effective_faculty ? `<span>Faculty: ${p.effective_faculty}</span>` : ''}
                             ${p.effective_room ? `<span>Room: ${p.effective_room}</span>` : ''}
                         </div>
                     </div>
                 </div>
 
-                <div class="flex items-center gap-2 self-end sm:self-center">
+                <div class="flex items-center gap-1.5 sm:gap-2 self-end sm:self-center flex-shrink-0">
                     <!-- Move Up / Down -->
-                    <button class="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition disabled:opacity-40"
+                    <button class="p-2 min-h-[38px] min-w-[38px] flex items-center justify-center rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition disabled:opacity-40"
                             ${idx === 0 ? 'disabled' : ''} onclick="window.appMovePeriod(${p.id}, -1)" title="Move Up">
                         <i data-lucide="arrow-up" class="w-4 h-4"></i>
                     </button>
-                    <button class="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition disabled:opacity-40"
+                    <button class="p-2 min-h-[38px] min-w-[38px] flex items-center justify-center rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition disabled:opacity-40"
                             ${idx === periods.length - 1 ? 'disabled' : ''} onclick="window.appMovePeriod(${p.id}, 1)" title="Move Down">
                         <i data-lucide="arrow-down" class="w-4 h-4"></i>
                     </button>
                     
                     <!-- Edit -->
-                    <button class="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition"
+                    <button class="p-2 min-h-[38px] min-w-[38px] flex items-center justify-center rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition"
                             onclick="window.appOpenEditPeriodModal(${p.id})" title="Edit Period">
                         <i data-lucide="edit-2" class="w-4 h-4"></i>
                     </button>
 
                     <!-- Delete -->
-                    <button class="p-2 rounded-xl bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 hover:bg-rose-100 dark:hover:bg-rose-900/60 transition"
+                    <button class="p-2 min-h-[38px] min-w-[38px] flex items-center justify-center rounded-xl bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 hover:bg-rose-100 dark:hover:bg-rose-900/60 transition"
                             onclick="window.appDeletePeriod(${p.id})" title="Delete Saved Period" aria-label="Delete Period">
                         <i data-lucide="trash-2" class="w-4 h-4"></i>
                     </button>
@@ -909,14 +1030,17 @@ async function loadRecords() {
 
         // Summary stats for filtered records
         const total = records.length;
-        const attended = records.filter(r => r.status === 'Present').length;
-        const absent = total - attended;
-        const pct = total > 0 ? Math.round((attended / total) * 1000) / 10 : 0;
+        const holidaysCount = records.filter(r => r.status === 'Holiday' || r.is_holiday).length;
+        const regularRecords = records.filter(r => r.status !== 'Holiday' && !r.is_holiday);
+        const attended = regularRecords.filter(r => r.status === 'Present').length;
+        const absent = regularRecords.length - attended;
+        const pct = regularRecords.length > 0 ? Math.round((attended / regularRecords.length) * 1000) / 10 : 0;
 
         document.getElementById('records-stats-summary').innerHTML = `
             Showing <strong>${total}</strong> records &bull; 
             <span class="text-emerald-600 dark:text-emerald-400 font-semibold">${attended} Present (${pct}%)</span> &bull; 
             <span class="text-rose-600 dark:text-rose-400 font-semibold">${absent} Absent</span>
+            ${holidaysCount > 0 ? ` &bull; <span class="text-purple-600 dark:text-purple-400 font-semibold">${holidaysCount} Holiday${holidaysCount === 1 ? '' : 's'}</span>` : ''}
         `;
 
         const tbody = document.getElementById('records-table-body');
@@ -928,6 +1052,45 @@ async function loadRecords() {
         }
 
         tbody.innerHTML = records.map(r => {
+            if (r.status === 'Holiday' || r.is_holiday) {
+                return `
+                <tr class="bg-purple-50/40 dark:bg-purple-950/20 hover:bg-purple-50 dark:hover:bg-purple-950/40 transition">
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <div class="font-semibold text-purple-950 dark:text-purple-200">${formatDateDisplay(r.date)}</div>
+                        <div class="text-xs text-purple-600 dark:text-purple-400">${r.period_day || getDayName(r.date)}</div>
+                    </td>
+                    <td class="px-6 py-4 text-center whitespace-nowrap">
+                        <span class="px-2.5 py-1 rounded-lg text-xs font-bold bg-purple-100 dark:bg-purple-900/60 text-purple-700 dark:text-purple-300">
+                            -
+                        </span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <div class="flex items-center gap-2">
+                            <span class="w-2.5 h-2.5 rounded-full flex-shrink-0 bg-purple-500"></span>
+                            <div>
+                                <span class="font-semibold text-purple-950 dark:text-purple-200">${r.subject_name || 'College Holiday'}</span>
+                                <span class="text-xs text-purple-500 dark:text-purple-400 ml-1">(HOLIDAY)</span>
+                            </div>
+                        </div>
+                    </td>
+                    <td class="px-6 py-4 text-xs text-purple-600 dark:text-purple-400 whitespace-nowrap">
+                        All Day
+                    </td>
+                    <td class="px-6 py-4 text-center whitespace-nowrap">
+                        <span class="px-3 py-1 rounded-full text-xs font-bold bg-purple-100 dark:bg-purple-900/60 text-purple-700 dark:text-purple-300">
+                            🏖️ Holiday
+                        </span>
+                    </td>
+                    <td class="px-6 py-4 text-right whitespace-nowrap">
+                        <button class="p-1.5 rounded-lg text-slate-400 hover:text-purple-600 dark:hover:text-purple-400 transition"
+                                onclick="window.appUnmarkHolidayFromRecord('${r.date}')" title="Unmark Holiday">
+                            <i data-lucide="rotate-ccw" class="w-4 h-4"></i>
+                        </button>
+                    </td>
+                </tr>
+                `;
+            }
+
             const isPresent = r.status === 'Present';
             return `
                 <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition">
@@ -1406,6 +1569,7 @@ async function loadAnalytics() {
                     <td class="px-6 py-4 font-semibold text-slate-900 dark:text-white">${m.label}</td>
                     <td class="px-6 py-4 text-center font-medium">${m.attended}</td>
                     <td class="px-6 py-4 text-center font-medium">${m.absent}</td>
+                    <td class="px-6 py-4 text-center font-bold text-purple-600 dark:text-purple-400">${m.holidays || 0}</td>
                     <td class="px-6 py-4 text-center font-medium">${m.total}</td>
                     <td class="px-6 py-4 text-center">
                         <span class="font-bold ${m.percentage >= state.settings.required_attendance ? 'text-emerald-600' : 'text-rose-600'}">${m.percentage}%</span>
@@ -1432,6 +1596,17 @@ async function loadCalendar() {
 
         document.getElementById('cal-month-label').textContent = monthName;
 
+        // Count holidays in this month
+        let holidaysInMonth = 0;
+        Object.values(calData).forEach(item => {
+            if (item && item.is_holiday) holidaysInMonth++;
+        });
+        const holBadge = document.getElementById('cal-holidays-count-badge');
+        if (holBadge) {
+            const spanEl = holBadge.querySelector('span') || holBadge;
+            spanEl.textContent = `${holidaysInMonth} Holiday${holidaysInMonth === 1 ? '' : 's'} this month`;
+        }
+
         const firstDayOfWeek = monthDate.getDay(); // 0 is Sunday
         const daysInMonth = new Date(year, month, 0).getDate();
 
@@ -1451,26 +1626,33 @@ async function loadCalendar() {
             const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
             const info = calData[dateStr];
             const isToday = (dateStr === todayStr);
+            const isHoliday = !!(info && info.is_holiday);
 
             let statusBadge = '';
-            if (info && info.total > 0) {
+            if (isHoliday) {
+                statusBadge = `<span class="inline-flex items-center gap-0.5 sm:gap-1 text-[9px] sm:text-[11px] font-bold px-1 sm:px-2 py-0.5 rounded-md bg-purple-100 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300" title="${info.holiday_name || 'Holiday'}"><span class="hidden sm:inline">🏖️ </span>Holiday</span>`;
+            } else if (info && info.total > 0) {
                 if (info.status === 'all_present') {
-                    statusBadge = `<span class="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-md bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400">🟢 ${info.attended}/${info.total}</span>`;
+                    statusBadge = `<span class="inline-flex items-center gap-0.5 sm:gap-1 text-[9px] sm:text-[11px] font-bold px-1 sm:px-2 py-0.5 rounded-md bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400"><span class="hidden sm:inline">🟢 </span>${info.attended}/${info.total}</span>`;
                 } else if (info.status === 'all_absent') {
-                    statusBadge = `<span class="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-md bg-rose-100 dark:bg-rose-950/60 text-rose-700 dark:text-rose-400">🔴 0/${info.total}</span>`;
+                    statusBadge = `<span class="inline-flex items-center gap-0.5 sm:gap-1 text-[9px] sm:text-[11px] font-bold px-1 sm:px-2 py-0.5 rounded-md bg-rose-100 dark:bg-rose-950/60 text-rose-700 dark:text-rose-400"><span class="hidden sm:inline">🔴 </span>0/${info.total}</span>`;
                 } else {
-                    statusBadge = `<span class="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-md bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-400">🟡 ${info.attended}/${info.total}</span>`;
+                    statusBadge = `<span class="inline-flex items-center gap-0.5 sm:gap-1 text-[9px] sm:text-[11px] font-bold px-1 sm:px-2 py-0.5 rounded-md bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-400"><span class="hidden sm:inline">🟡 </span>${info.attended}/${info.total}</span>`;
                 }
             }
 
+            const cellBorder = isHoliday
+                ? 'border-purple-300 dark:border-purple-800/80 bg-purple-50/20'
+                : (isToday ? 'border-indigo-500 ring-2 ring-indigo-500/30' : 'border-slate-200 dark:border-slate-800');
+
             html += `
-                <div class="calendar-day-cell p-2.5 bg-white dark:bg-slate-900 border ${isToday ? 'border-indigo-500 ring-2 ring-indigo-500/30' : 'border-slate-200 dark:border-slate-800'} rounded-2xl hover:border-indigo-400 transition cursor-pointer flex flex-col justify-between"
+                <div class="calendar-day-cell p-1 sm:p-2.5 bg-white dark:bg-slate-900 border ${cellBorder} rounded-xl sm:rounded-2xl hover:border-indigo-400 transition cursor-pointer flex flex-col justify-between"
                      onclick="window.appOpenCalendarDay('${dateStr}')">
                     <div class="flex items-center justify-between">
-                        <span class="text-sm font-bold ${isToday ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-800 dark:text-slate-200'}">${d}</span>
-                        ${isToday ? `<span class="text-[10px] font-extrabold uppercase px-1.5 py-0.2 bg-indigo-100 dark:bg-indigo-950 text-indigo-600 rounded">Today</span>` : ''}
+                        <span class="text-xs sm:text-sm font-bold ${isHoliday ? 'text-purple-700 dark:text-purple-300' : (isToday ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-800 dark:text-slate-200')}">${d}</span>
+                        ${isToday ? `<span class="text-[8px] sm:text-[10px] font-extrabold uppercase px-1 sm:px-1.5 py-0.2 bg-indigo-100 dark:bg-indigo-950 text-indigo-600 rounded">Today</span>` : ''}
                     </div>
-                    <div class="mt-2 flex flex-wrap gap-1">
+                    <div class="mt-1 sm:mt-2 flex flex-wrap gap-1">
                         ${statusBadge}
                     </div>
                 </div>
@@ -1478,6 +1660,7 @@ async function loadCalendar() {
         }
 
         grid.innerHTML = html;
+        if (window.lucide) window.lucide.createIcons();
 
     } catch (err) {
         console.error("Calendar load failed:", err);
@@ -2480,11 +2663,34 @@ document.addEventListener('DOMContentLoaded', async () => {
     const mobileMenuBtn = document.getElementById('btn-mobile-menu');
     const mobileDrawer = document.getElementById('mobile-drawer');
     const closeDrawerBtn = document.getElementById('btn-close-drawer');
+    
+    window.appToggleMobileDrawer = function(force) {
+        if (!mobileDrawer) return;
+        const willOpen = (typeof force === 'boolean') ? force : mobileDrawer.classList.contains('hidden');
+        if (willOpen) {
+            mobileDrawer.classList.remove('hidden');
+            document.body.classList.add('overflow-hidden');
+        } else {
+            mobileDrawer.classList.add('hidden');
+            document.body.classList.remove('overflow-hidden');
+        }
+        if (window.lucide) window.lucide.createIcons();
+    };
+
+    window.appOpenCalculator = function() {
+        if (state.subjects && state.subjects.length > 0) {
+            window.appOpenSubjectDetails(state.subjects[0].id);
+        } else {
+            showToast("Please add at least one subject first to use the calculator", "info");
+            switchView('dashboard');
+        }
+    };
+
     if (mobileMenuBtn && mobileDrawer) {
-        mobileMenuBtn.addEventListener('click', () => mobileDrawer.classList.toggle('hidden'));
+        mobileMenuBtn.addEventListener('click', () => window.appToggleMobileDrawer());
     }
     if (closeDrawerBtn && mobileDrawer) {
-        closeDrawerBtn.addEventListener('click', () => mobileDrawer.classList.add('hidden'));
+        closeDrawerBtn.addEventListener('click', () => window.appToggleMobileDrawer(false));
     }
 
     // Dark mode toggle in header
@@ -2503,6 +2709,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.querySelectorAll('[data-modal-close]').forEach(btn => {
         btn.addEventListener('click', () => {
             btn.closest('.modal-overlay')?.classList.add('hidden');
+            document.body.classList.remove('overflow-hidden');
+        });
+    });
+
+    // Backdrop click close for all modals and drawer
+    document.querySelectorAll('.modal-overlay').forEach(overlay => {
+        overlay.addEventListener('click', (e) => {
+            if (e.target === overlay) {
+                overlay.classList.add('hidden');
+                document.body.classList.remove('overflow-hidden');
+            }
         });
     });
 
